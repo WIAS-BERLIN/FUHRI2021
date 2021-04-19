@@ -6,4 +6,4 @@ Julia is a high-level, high-performance dynamic language for technical computing
 
 ## Julia installation
 
-To install the Julia interpreter on your platform, follow the instructions [here](https://julialang.org/downloads/platform/).
+To install the Julia language on your platform, follow the instructions [here](https://julialang.org/downloads/platform/).
