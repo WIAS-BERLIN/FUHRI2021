@@ -8,6 +8,7 @@ using InteractiveUtils
 begin
 	using ForwardDiff
 	using DiffResults
+	using ReverseDiff
 	using PlutoUI
 	PlutoUI.TableOfContents()
 end
@@ -23,6 +24,7 @@ This tutorial gives some first insight into the automatic differentiation featur
 
 - [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl)
 - [DiffResults](https://github.com/JuliaDiff/DiffResults.jl)
+- [ReverseDiff](https://github.com/JuliaDiff/ReverseDiff.jl)
 
 On the right-hand side you should see a table of contents.
 
@@ -31,7 +33,7 @@ On the right-hand side you should see a table of contents.
 # ╔═╡ b19235be-0338-4212-9d0a-5e45a1c866ea
 md"""
 
-## Dual Numbers
+## Forward differentiation via Dual Numbers
 
 Forward differentiation is based on dual numbers. Dual numbers look like complex numbers as they are written as
 
@@ -232,7 +234,7 @@ Text("dFjda2(j,a) = $(dFjda2(j,a))\n DF(a)[j,2] = $(DF(a)[j,2])")
 # ╔═╡ 73784db5-11d6-4758-946c-b1a065a7d64b
 md"""
 
-## Advanced Usage
+### Advanced Usage
 
 Whenever a function is differentiated at many points and performance becomes important, it is advisable to use a buffer to store the function value and the desired derivatives. Moreover, if e.g. the hessian is computed it would be nice to get out the lower derivatives as well without issuing another gradient computation. All this can be achieved with using DiffResults. Details can be found in the [Documentation of DiffResults](https://juliadiff.org/DiffResults.jl/stable/)
 
@@ -306,25 +308,51 @@ end
 # ╔═╡ 8519854d-7fd9-4b92-b032-4a902a99d12c
 md"""
 
-## Final Remarks
 
 
-### Limitations of ForwardDiff.jl
-
-There are some more or less obvious limitations to ForwardDiff:
-
-- you can only use it only generic Julia functions
-- the function must be generic enough to accept <:Real arguments
-- ... ???
-
-
-### ReverseDiff.jl, Zygote.jl ...
+## Reverse differentiation
 
 There is also a [ReverseDiff.jl](https://github.com/JuliaDiff/ReverseDiff.jl) package with a completely different approach. In the reverse mode the function is first split into a 'forward pass' which is a series of single operations with known derivatives which are then multiplied together according to the chain rule (called 'reverse pass').
 
 It might be the better alternative for high-dimensional gradients or functions with a number of input parameters that is larger than the output dimension. Another reverse mode automatic differentiation package is [Zygote.jl](https://github.com/FluxML/Zygote.jl) that is used in the FluxML community.
 
+
+### Example with ReverseDiff.jl
+
+Finally, let's have at least one small example how to use ReverseDiff.jl for some scalar-valued function $h : \mathbb{R}^{n \times n} \times \mathbb{R}^{n \times n} \rightarrow \mathbb{R}$ that takes two matrices as input.
+
 """
+
+# ╔═╡ a99b4512-b820-434e-88e5-d58a04689b0c
+begin
+	n = 3 # set the dimension of A and B
+	h(A,B) = sum(A .* B + A' * B + A * B') # modify it if you like
+end
+
+# ╔═╡ 46070ab8-dd40-4cb2-91a2-28f24813d125
+begin
+	# record/compile tape for A, B being each nxn matrices
+	const h_tape = ReverseDiff.GradientTape(h, (rand(n,n), rand(n,n)))
+	const compiled_h_tape = ReverseDiff.compile(h_tape)
+	Text("Next, we pre-compile the gradient evaluation")
+end
+
+# ╔═╡ 23ddd62b-5d9c-4101-b97c-f2f09d8b9c79
+begin
+	A = ones(Float64,n,n)
+	B = -3*ones(Float64,n,n)
+	Text("Here you can define the two input matrices you want to use")
+end
+
+# ╔═╡ 847291ec-4fb2-43f0-8838-f6f5fe4fd2f6
+Text("And this is the evaluation of Dh(A,B)=(dhdA,dhdB)=")
+
+# ╔═╡ c306dd15-e43a-465f-9671-cb6e496d3de8
+begin
+	# evaluate gradient of h(inputs) into results
+	results = (similar(A), similar(B))
+	ReverseDiff.gradient!(results, compiled_h_tape, (A,B))
+end
 
 # ╔═╡ Cell order:
 # ╟─d4c4e2f4-ba74-400d-aee1-d5ac2c63ee19
@@ -353,8 +381,13 @@ It might be the better alternative for high-dimensional gradients or functions w
 # ╟─4c67d3bf-0d46-4b72-b902-28b31ddcea9a
 # ╟─a3ce3eca-150a-402b-ade1-1c391092dbf8
 # ╟─73784db5-11d6-4758-946c-b1a065a7d64b
-# ╟─2e954113-6e77-4936-83f1-58bb346aeb88
+# ╠═2e954113-6e77-4936-83f1-58bb346aeb88
 # ╟─6e721e97-fd41-45d5-bf66-ef6f82caa126
 # ╠═8ba620fc-b84c-4f62-a2c4-deb7c49b6e67
 # ╟─a5b4455b-3d9d-4d98-958f-a3b23e607760
 # ╟─8519854d-7fd9-4b92-b032-4a902a99d12c
+# ╠═a99b4512-b820-434e-88e5-d58a04689b0c
+# ╠═46070ab8-dd40-4cb2-91a2-28f24813d125
+# ╠═23ddd62b-5d9c-4101-b97c-f2f09d8b9c79
+# ╟─847291ec-4fb2-43f0-8838-f6f5fe4fd2f6
+# ╠═c306dd15-e43a-465f-9671-cb6e496d3de8
