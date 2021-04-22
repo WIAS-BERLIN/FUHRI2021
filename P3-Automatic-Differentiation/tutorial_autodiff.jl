@@ -8,30 +8,32 @@ using InteractiveUtils
 begin
 	using ForwardDiff
 	using DiffResults
+	using PlutoUI
+	PlutoUI.TableOfContents()
 end
 
 # ╔═╡ d4c4e2f4-ba74-400d-aee1-d5ac2c63ee19
 md"""
 
-# Automatic Differentation with Julia
+# Automatic Differentiation with Julia
 
-This tutorial gives some first insight into the automatic differentation features of Julia. To run it properly you need to have installed the following packages:
+## Introduction
+
+This tutorial gives some first insight into the automatic differentiation features (mainly ForwardDiff.jl) of Julia. To run it properly you need to have installed the following packages:
 
 - [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl)
 - [DiffResults](https://github.com/JuliaDiff/DiffResults.jl)
 
-
-**Remark**: 
-Here, we will focus on the forward differentiation technique based on dual numbers. There is also a ReverseDiff package that is based on iteratively reversed application of the cain rule. It might be the better alternative for high-dimensional gradients or functions with a number of input parameters that is larger than the output dimension.
+On the right-hand side you should see a table of contents.
 
 """
 
 # ╔═╡ b19235be-0338-4212-9d0a-5e45a1c866ea
 md"""
 
-### Dual Numbers
+## Dual Numbers
 
-Forward differentiation is based on dual numbers. Dual numbers look like complex numbers as there are written as
+Forward differentiation is based on dual numbers. Dual numbers look like complex numbers as they are written as
 
 $ z = a + b \epsilon \quad \text{where} \quad \epsilon^2 = 0 $
 
@@ -48,7 +50,7 @@ $ (a + b \epsilon) \cdot (x + y \epsilon) = (ax + 0) + \epsilon (ay + bx) $
 # ╔═╡ 688958d3-c39d-488c-9950-2c5fc83dee40
 md"""
 
-### So what? (Look at Taylor series)
+### Taylor series
 
 Consider a (smooth) function $f : \mathbb{R} \rightarrow \mathbb{R}$ and its Taylor series expansion at some value $a$:
 
@@ -63,7 +65,7 @@ In other words: Evaluating the function in the dual number $(a + 1\epsilon)$ giv
 **Key point**: If the function $f$ can be also evaluated in dual numbers, one can obtain its derivatives 'automatically' on basis of the dual number operations above!
 Due to Julia's on demand compilation and type dispatching, there will be two compiled versions of f(x<:Real), one for e.g. x::Float64 and one for the corressponding dual numbers (which is still a subtype of Real).
 
-Details on the actual implementation of the Dual numbers can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/dev/how_it_works/)
+Details on the actual implementation of the dual numbers can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/dev/how_it_works/)
 
 **Exercise**: Compute the derivative of $f(x) = (x-1)(x-2)$ at $x = 3$ by hand using dual numbers, i.e. compute $f(3 + \epsilon)$.
 
@@ -71,25 +73,30 @@ Details on the actual implementation of the Dual numbers can be found in the [Do
 
 # ╔═╡ c9656131-be14-48f3-9386-8320906ae3e5
 begin
-	"Reveal this cell completely to see the solution to the exercise above."
+	Text("Reveal this cell completely to see the solution to the exercise above.")
 	#
 	# f(3+ϵ) = (2+ϵ)(1+ϵ) = 2 + 3ϵ + ϵ^2 = 3 + 3ϵ
 	#
 	# Hence, f(3) = 2 and df(3) = 3
+	#
+	# For arbitrary x one obtains
+	# f(x+ϵ) = (x+ϵ-1)(x+ϵ-2) = x^2-3x+2 + ϵ(2x-3)
+	#
+	# Hence, df(x) = 2x-3
 	#
 end
 
 # ╔═╡ 2029b8bd-408c-4e2f-a628-ee2a56eed43a
 md"""
 
-#### Example 1 : 1D differentiation
+### Example 1 : 1D differentiation
 Let's define some scalar-valued function $f : \mathbb{R} \rightarrow \mathbb{R}$ to test this:
 
 """
 
 # ╔═╡ 605fa750-99c8-4ea4-928b-2e13110de9a8
 function f(z::Real)
-	return cos(z)*sin(z) + z^2 - 1 # change this expression to any function you like
+	return cos(z)*sin(z) + z^2 - 1 # change the function here if you like
 end
 
 # ╔═╡ 9153b452-f073-402d-ac68-a257cb8e7740
@@ -113,15 +120,15 @@ Let's evaluate f and its derivatives at some point z.
 """
 
 # ╔═╡ d0bdbfaf-9a8a-408c-aace-5ed53052ab4f
-z = pi # change the evaluation point if you like
+z = pi # change the evaluation point here if you like
 
 # ╔═╡ e1bbb076-1ec4-4005-a69c-667e7fd0a35b
-"f(z) = $(f(z)) | df(z) = $(df(z)) | d2f(z) = $(d2f(z))"
+Text("  f(z) = $(f(z))\n df(z) = $(df(z))\nd2f(z) = $(d2f(z))")
 
 # ╔═╡ 271511b3-c5e5-4ca2-ab79-5372b9f9a616
 md"""
 
-#### Exercise Block 1
+### Exercise Block 1
 
 **Exercise 1.1** : Compute the derivative of the function $f(z) = (z+1)\exp(-z^2)$ at z = 1. (You just have to manipulate the function f and z above.) Also check what you have computed by hand in the dual number exercise above.
 
@@ -133,7 +140,7 @@ md"""
 
 # ╔═╡ 2a54d947-04e7-4b77-8c82-d2ebddadff4a
 begin
-function newton(f::Function; init = 1, maxits = 100, tol = 1e-12)
+function newton(f::Function; init = 1.0, maxits = 100, tol = 1e-12)
 	zn::Float64 = init
 	fzn::Float64 = 0
 	dfzn::Float64 = 0
@@ -142,25 +149,31 @@ function newton(f::Function; init = 1, maxits = 100, tol = 1e-12)
 		it += 1
 		fzn = f(zn)
 		if abs(fzn) < tol
-			return "arrived at [z,f(z)] = [$zn, $fzn] after $it iterations"
+			return zn, fzn, it, true
 		elseif it >= maxits
-			return "arrived at [z,f(z)] = [$zn, $fzn] after $it iterations (=maxits)"
+			return zn, fzn, it, false
 		else
 			dfzn = ForwardDiff.derivative(f,zn)
 			if abs(dfzn) < tol
-				return "zero derivative at z = $zn in iteration $it (try different init)"
+				# Halt due to zero derivative
+				return zn, fzn, it, false
 			end
 			zn = zn - fzn/dfzn
 		end
 	end
 end
-newton(f; init = z)
+res = newton(f; init = z)
+if res[4] == true
+	Text("After $(res[3]) iterations arrived at...\n\t  z = $(res[1])\n\tf(z)= $(res[2])")
+else
+	Text("Stopped after $(res[3]) iterations with...\n\t  z = $(res[1])\n\tf(z)= $(res[2])")
+end
 end
 
 # ╔═╡ 1c7324e7-73d6-41f3-be47-fd794756b842
 md"""
 
-#### Example 2 : (Partial) Derivatives of vector-valued functions
+### Example 2 : (Partial) Derivatives of vector-valued functions
 
 Let's have a look at some two-dimensionally parametrized vector-field $F : \mathbb{R}^2 \rightarrow \mathbb{R}^3$
 
@@ -192,7 +205,7 @@ Let's evaluate F and DF at some points.
 a = [0.0, 0.0] # change the parameters if you like
 
 # ╔═╡ 62a2e422-3ed3-44bf-9d67-11bc899a4b38
-"F(a) = $(F(a)) | DF(a) = $(DF(a))"
+Text(" F(a) = $(F(a))\nDF(a) = $(DF(a))")
 
 # ╔═╡ aa74e4e8-8e9f-4c6d-bb2f-4dbf73f88a7e
 md"""
@@ -214,17 +227,16 @@ end
 md""" Let's check if it works when we evaluate dFda2 at the given a (for comparison also the coressponding j-subset of the k-th column of DF(a) is shown)..."""
 
 # ╔═╡ a3ce3eca-150a-402b-ade1-1c391092dbf8
-
-"dFjda2(j,a) = $(dFjda2(j,a)) | DF(a)[j,2] = $(DF(a)[j,2])"
+Text("dFjda2(j,a) = $(dFjda2(j,a))\n DF(a)[j,2] = $(DF(a)[j,2])")
 
 # ╔═╡ 73784db5-11d6-4758-946c-b1a065a7d64b
 md"""
 
-### Advanced Usage
+## Advanced Usage
 
 Whenever a function is differentiated at many points and performance becomes important, it is advisable to use a buffer to store the function value and the desired derivatives. Moreover, if e.g. the hessian is computed it would be nice to get out the lower derivatives as well without issuing another gradient computation. All this can be achieved with using DiffResults. Details can be found in the [Documentation of DiffResults](https://juliadiff.org/DiffResults.jl/stable/)
 
-Additionally, ForwardDiff can be tuned with a Configuration variable to e.g. modify the chunk size. Details can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/user/advanced/).
+Additionally, ForwardDiff can be tuned with a Configuration variable to e.g. modify the chunk size which is more relevant for larger input sizes. Details can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/user/advanced/).
 
 Let's try everything with DF(a) above...
 
@@ -240,24 +252,25 @@ begin
 	# everything is passed to ForwardDiff.jacobian!
 	result = ForwardDiff.jacobian!(result,F,a,cfg)
 	# now F(a) and DF(a) can be extracted from result
-	"F(a) = $(DiffResults.value(result)) | DF(a) = $(DiffResults.gradient(result))"
+	Text("F(a) = $(DiffResults.value(result))\nDF(a) = $(DiffResults.gradient(result))")
 end
 
 # ╔═╡ 6e721e97-fd41-45d5-bf66-ef6f82caa126
 md"""
 
-#### Exercise Block 2
+### Exercise Block 2
 
-**Exercise 2.1** : Rewrite your Newton method so that it handles vector-valued functions $G : \mathbb{R}^n \rightarrow \mathbb{R}^n$ and use DiffResults.JacobianResult as a buffer. You can enter a test function G and initial guess below. (Reveal the box below to see a possible solution.)
+**Exercise 2.1** : Rewrite your Newton method so that it handles vector-valued functions $G : \mathbb{R}^n \rightarrow \mathbb{R}^n$ and use DiffResults.JacobianResult as a buffer. (Reveal the box below to see a possible solution.)
 
 """
 
 # ╔═╡ 8ba620fc-b84c-4f62-a2c4-deb7c49b6e67
 begin
-	init = [0.1,0.1,0.1]
+	init = [0.5,0.5,0.5]
 	function G(x)
-		return [x[1]^2-2,x[2]^2-3,x[3]^2 - 4]
+		return x[1] .* [x[1]^2-2,x[2]^2-3,x[3]^2 - 4]
 	end
+	Text("Enter initial guess and function G here:")
 end
 
 # ╔═╡ a5b4455b-3d9d-4d98-958f-a3b23e607760
@@ -271,18 +284,47 @@ function newton_advanced(F::Function, init; maxits = 100, tol = 1e-12)
 		it += 1
 		result = ForwardDiff.jacobian!(result,F,zn,cfg)
 		if sqrt(sum(DiffResults.value(result).^2)) < tol
-			return "arrived at [z,f(z)] = [$zn, $(DiffResults.value(result))] after $it iterations"
+			return zn, DiffResults.value(result), it, true
 		elseif it >= maxits
-			return "arrived at [z,f(z)] = [$zn, $(DiffResults.value(result))] after $it iterations (=maxits)"
+			return zn, DiffResults.value(result), it, false
 		elseif any(isnan, zn)
-			return "zn contains NaN (try another init)"	
+			# Halt due to NaN
+			return zn, Diffresults.value(result), it, false
 		else
 			zn = zn - DiffResults.gradient(result) \ DiffResults.value(result)
 		end
 	end
 end
-newton_advanced(G, init)
+res2 = newton_advanced(G, init)
+if res2[4] == true
+	Text("After $(res2[3]) iterations arrived at...\n\t  z = $(res2[1])\n\tf(z)= $(res2[2])")
+else
+	Text("Stopped after $(res2[3]) iterations with...\n\t  z = $(res2[1])\n\tf(z)= $(res2[2])")
 end
+end
+
+# ╔═╡ 8519854d-7fd9-4b92-b032-4a902a99d12c
+md"""
+
+## Final Remarks
+
+
+### Limitations of ForwardDiff.jl
+
+There are some more or less obvious limitations to ForwardDiff:
+
+- you can only use it only generic Julia functions
+- the function must be generic enough to accept <:Real arguments
+- ... ???
+
+
+### ReverseDiff.jl, Zygote.jl ...
+
+There is also a [ReverseDiff.jl](https://github.com/JuliaDiff/ReverseDiff.jl) package with a completely different approach. In the reverse mode the function is first split into a 'forward pass' which is a series of single operations with known derivatives which are then multiplied together according to the chain rule (called 'reverse pass').
+
+It might be the better alternative for high-dimensional gradients or functions with a number of input parameters that is larger than the output dimension. Another reverse mode automatic differentiation package is [Zygote.jl](https://github.com/FluxML/Zygote.jl) that is used in the FluxML community.
+
+"""
 
 # ╔═╡ Cell order:
 # ╟─d4c4e2f4-ba74-400d-aee1-d5ac2c63ee19
@@ -311,7 +353,8 @@ end
 # ╟─4c67d3bf-0d46-4b72-b902-28b31ddcea9a
 # ╟─a3ce3eca-150a-402b-ade1-1c391092dbf8
 # ╟─73784db5-11d6-4758-946c-b1a065a7d64b
-# ╠═2e954113-6e77-4936-83f1-58bb346aeb88
+# ╟─2e954113-6e77-4936-83f1-58bb346aeb88
 # ╟─6e721e97-fd41-45d5-bf66-ef6f82caa126
 # ╠═8ba620fc-b84c-4f62-a2c4-deb7c49b6e67
 # ╟─a5b4455b-3d9d-4d98-958f-a3b23e607760
+# ╟─8519854d-7fd9-4b92-b032-4a902a99d12c
