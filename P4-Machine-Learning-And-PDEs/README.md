@@ -12,3 +12,4 @@ using Pkg
 Pkg.add("NeuralPDE")
 ```
 
+We will upload a Pluto notebook in this repository soon!
