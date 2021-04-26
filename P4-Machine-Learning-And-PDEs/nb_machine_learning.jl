@@ -17,18 +17,16 @@ begin
 			 "Optim",
 			 "GalacticOptim",
 			 "PlutoUI"])
-	using Markdown
 	using OrdinaryDiffEq
-	using Plots
-	using Statistics
-	using DiffEqFlux
-	using Flux
-	using DiffEqSensitivity
 	using ModelingToolkit
 	using DataDrivenDiffEq
-	using Optim
-	using GalacticOptim
 	using LinearAlgebra
+	using DiffEqSensitivity
+	using Optim
+	using DiffEqFlux, Flux	
+	using Plots
+	using Statistics
+	using GalacticOptim
 	using PlutoUI
 	gr()   # use GR graphics backend
 end
@@ -47,7 +45,7 @@ md"""
 
 In very simplified terms, a (deep) neural network attempts to 
 approximate an unkown function $F:\mathbb{R}^M\to \mathbb{R}^N$.
-Typically such a NN has the form 
+Typically such an NN has the form 
 
 $\begin{equation}
 F_\theta(X) = W_K\sigma_{K-1}\big(W_{K-1}\sigma_{K-2}(\ldots W_1\sigma_0(W_0X+b_0)+b_1\ldots) + b_{K-1}\big) + b_K,
@@ -317,8 +315,9 @@ $\begin{equation}
 \boldsymbol\Lambda_*\in\mathrm{Arg\,min}_{\boldsymbol{\Lambda}}\Big\{ \big\|\boldsymbol{\dot U} -\boldsymbol\Lambda\boldsymbol\Phi(\boldsymbol{U})\big\|_2 + \kappa\|\boldsymbol\Lambda\|_1 \Big\}
 \end{equation}$
 
-where $\boldsymbol U$ (and its derivative) are the solutions predicted by our NN system.
-
+where $\boldsymbol U$ are the solutions predicted by our NN system.
+However, since we have partial knowledge about the ODE system (given by the terms multiplied by $\alpha$ and $\delta$), we can use $\tilde F_\theta$ from our trained NN
+instead of the time derivative $\boldsymbol{ \dot U}$.
 
 We first create a basis consisting of monomials in $u=(u_1,u_2)$ with maximal order 5.
 For fun we also throw the sine function into the mix.
@@ -358,7 +357,7 @@ md"""We also define a target function to choose the results from: L2-Error of th
 g(x) = x[1] < 1 ? Inf : norm(x, 2);
 
 # ╔═╡ 8a8a601b-4b38-439e-b2ee-c41d380278e4
-md"""We run the optimization problem first on the true nonlinear map $F$ to find the optimal coefficients."""
+md"""We run the optimization problem first on the true nonlinear map $F$ to find the optimal coefficients. This is just to verify that the method does what it should."""
 
 # ╔═╡ 39ce4bad-44e3-427f-8f5f-3936209dde78
 begin
@@ -374,9 +373,6 @@ begin
 	Ψ̃ = SINDy(Û, G̃, basis, λ,  opt, g = g, maxiter = 50000, normalize = true, denoise = true, convergence_error = Float32(1e-10)) # Succeed
 	Ψ̃.coeff[:]
 end
-
-# ╔═╡ b4a4e3d9-87ae-4a02-86c9-7daf60f3ddee
-
 
 # ╔═╡ 3c8fba9d-e896-43d7-b7ea-8d18ef66df7c
 md"""We save the nonzero parameters."""
@@ -439,13 +435,27 @@ begin
 	
 end
 
+# ╔═╡ aee901dc-e5a6-4ed8-af0c-16b3924c989c
+md"""
+### 1.4 Conclusion
+We used a small neural network to reconstruct the unknown nonlinear interaction in the Lotka--Volterra model based on noisy data on the time interval $[0,3]$. However, the neural network could not be used directly to predict the behavior of the system. Instead, we used the SINDy method to reconstruct the nonlinear interaction. 
+
+While the SInDy method normally approximates derivatives using a spline over the data points or similar numerical techniques, here we have $\tilde F_\theta(u_1,u_2)$ as an estimator of the derivative for only the missing terms of the model and we can perform a sparse regression on samples from the trained $\tilde F_\theta(u_1,u_2)$ to reconstruct only the unknown interaction equations. Even though the original data
+did not contain a full period of the cyclic solution, the resulting fit is then able to accurately extrapolate from the short time series data.
+
+ Likewise,  when  attempting  to  learn  full  ODE  with  the original SInDy approach on the same trained data with the analytical derivative  values,  it seems to be not possible to  recover  the  exact  original  equations  from  the sparse  regression,  indicating  that  the  knowledge-enhanced  approach  increases the robustness equation discovery.
+
+See [A. Bills,  S.  Sripad,  W.  L.  Fredericks,  M. Guttenberg,   D.   Charles,   E.   Frank,   and   V. Viswanathan.   Universal  Battery  Performance  and  Degradation  Model for Electric Aircraft](https://arxiv.org/abs/2008.01527) for a more practical example.
+
+"""
+
 # ╔═╡ b90c266e-164a-431c-8aa4-fda02401f4c9
 TableOfContents()
 
 # ╔═╡ Cell order:
 # ╟─631a008c-a667-11eb-3af0-e99874435c33
 # ╠═fdb7be1f-94ab-4c3f-a5fb-05d8433d8e16
-# ╟─56747210-79d6-4862-a5b2-1a707d713c93
+# ╠═56747210-79d6-4862-a5b2-1a707d713c93
 # ╠═c7475b08-ebbd-4d33-9320-24f67b72b9c5
 # ╟─8bd1dec7-a592-4980-8f2f-f35cdb829096
 # ╠═e352104e-d543-4b01-a905-06f14728fed6
@@ -508,7 +518,6 @@ TableOfContents()
 # ╠═39ce4bad-44e3-427f-8f5f-3936209dde78
 # ╟─66652f86-da03-41d3-a31c-1e710af3c1eb
 # ╠═3b53ee1b-743a-4228-baaf-b21b0d40ccbf
-# ╠═b4a4e3d9-87ae-4a02-86c9-7daf60f3ddee
 # ╟─3c8fba9d-e896-43d7-b7ea-8d18ef66df7c
 # ╠═19df7f30-1c7a-4e83-a04c-3dc11ba0cbfd
 # ╠═e7bdea03-9463-4312-b667-89e4a78b7d08
@@ -522,6 +531,7 @@ TableOfContents()
 # ╠═c53e290f-7a03-4b77-9535-c701404502a3
 # ╟─16318713-d8d2-4611-a3c6-8eff31d90375
 # ╠═5766ef95-d5d5-43af-bd8a-4784dd439c4d
-# ╠═92be4059-19f8-4c3c-893c-29933d74959b
+# ╟─92be4059-19f8-4c3c-893c-29933d74959b
 # ╠═c40053ec-964b-402f-b705-458d93361983
+# ╟─aee901dc-e5a6-4ed8-af0c-16b3924c989c
 # ╠═b90c266e-164a-431c-8aa4-fda02401f4c9
