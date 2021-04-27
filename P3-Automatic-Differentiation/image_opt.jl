@@ -105,16 +105,15 @@ function main()
         filter_function(img_result,source_gray, filter)
         return graydiff(target_gray,img_result)
     end
+    
 
-    # optimise objective function = run Newton on gradient of objective_function
-    @info "Starting optimisation..."
-    dobj(filter) = ForwardDiff.gradient(objective_function,filter)
-    @time filter, df, its = newton_advanced(dobj, filter; maxits = 5, tol = 1e-8)
+    ################################
+    ### INSERT OPTIMISATION HERE ###
+    ################################
 
-    # show best filter, check optimilaity condition and apply filter
-    @info "...finished"
+
+    # show resulting filter and apply it to image
     @show filter
-    @show df
     img_result = Array{Float64,2}(deepcopy(source_gray))
     filter_function(img_result,source_gray, filter)
     target_gray = Array{Float64,2}(target_gray)
