@@ -1,6 +1,7 @@
 #
 using ImageView
 using Images
+using Gtk
 using ForwardDiff
 using DiffResults
 
@@ -35,7 +36,7 @@ target_gray = Array{Float64,2}(Gray.(target_img))
 source_gray = convert(Array{Float64,2},Gray.(source_img))
 
 # maximal allowed convolution filter size
-n=5
+n=11
 
 ## function that applies the filter convolution to the input image and writes it to result
 function apply_convolution!(result, input, filter)
