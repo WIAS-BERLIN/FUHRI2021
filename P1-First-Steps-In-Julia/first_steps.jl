@@ -1,8 +1,17 @@
 ### A Pluto.jl notebook ###
-# v0.14.3
+# v0.14.4
 
 using Markdown
 using InteractiveUtils
+
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : missing
+        el
+    end
+end
 
 # ╔═╡ 00aee08e-a674-11eb-0cc7-c17b0e738c81
 begin
@@ -474,6 +483,56 @@ begin
 	# local_function() # will not work, scope of local_function() is hidden
 end
 
+# ╔═╡ 5c9c1e08-5bb8-4ca8-b2f1-a07ad9770dbe
+md"""Julia in education:"""
+
+# ╔═╡ a42e6597-b7d9-49c8-b3f2-e60d39615725
+ @bind plot_tan CheckBox()
+
+# ╔═╡ d2102943-3108-4b91-bf19-a5d44a5ccbff
+ @bind plot_cot CheckBox()
+
+# ╔═╡ 4cfdd364-7447-4473-9ab8-f5bb5a420045
+@bind deg Slider(0:0.01:360)
+
+# ╔═╡ 224d28a3-8ec9-489e-98b4-5a7f4102850e
+let
+	ϕ = deg * π / 180
+	adjacent_leg = cos(ϕ) # Ankathete
+	opposite_leg = sin(ϕ) # Gegenkathete
+	
+	t = LinRange(0, 1, 100)
+	θ = (2π) .* t
+	x = cos.(θ)
+	y = sin.(θ)
+	p = plot(x, y, leg = false, color = :black, aspect_ratio = 1)
+	plot!([-1.2, 1.2], [0, 0], color = :black, arrow = 1.2)
+	plot!([0, 0], [-1.2, 1.2], color = :black, arrow = 1.2)
+	plot!([adjacent_leg, adjacent_leg], [0, opposite_leg], color = :black)
+	plot!(; annotations = (-0.1 + adjacent_leg, 0.5 * opposite_leg, Plots.text("sin ϕ", :center, rotation = 90)))
+	plot!([0, adjacent_leg], [0, opposite_leg], color = :black)
+	plot!(; annotations = (0.5 * adjacent_leg, -0.1 * sign(sin(ϕ)), Plots.text("cos ϕ", :center)))
+	
+	if plot_tan
+		plot!([1, 1], [0, tan(ϕ)], color = :black)
+		plot!([0, 1], [0, tan(ϕ)], color = :black, linestyle = :dash)
+		plot!(; annotations = (1.1, 0.5 * tan(ϕ), Plots.text("tan ϕ", :center, rotation = 90)))
+	end
+	
+	if plot_cot
+		plot!([0, cot(ϕ)], [1, 1], color = :black)
+		plot!([0, cot(ϕ)], [0, 1], color = :black, linestyle = :dash)
+		plot!(; annotations = (0.5 * cot(ϕ), 1.1, Plots.text("cot ϕ", :center)))
+	end
+	
+	θ = (ϕ) .* t
+	x = 1 / 4 * cos.(θ)
+	y = 1 / 4 * sin.(θ)
+	plot!(x, y, leg = false, color = :black, arrow = 1)
+	plot!(; annotations = (0.75 * x[50], 0.75 * y[50], Plots.text("ϕ")))
+	# plot(y, annotations = (3, y[3], Plots.text("this is #3", :left)), leg = false)
+end
+
 # ╔═╡ Cell order:
 # ╠═00aee08e-a674-11eb-0cc7-c17b0e738c81
 # ╟─3ac23f84-6a1e-456f-96cd-d131b1363000
@@ -567,3 +626,8 @@ end
 # ╠═ab7bc993-76c2-47cb-a5d5-ec75c380f6e0
 # ╟─fa7bb4e5-62ed-41f8-ba87-e40b90d9a041
 # ╠═37950ac1-cc37-4417-a9de-712edc6ce9f0
+# ╟─5c9c1e08-5bb8-4ca8-b2f1-a07ad9770dbe
+# ╠═a42e6597-b7d9-49c8-b3f2-e60d39615725
+# ╠═d2102943-3108-4b91-bf19-a5d44a5ccbff
+# ╠═4cfdd364-7447-4473-9ab8-f5bb5a420045
+# ╠═224d28a3-8ec9-489e-98b4-5a7f4102850e
