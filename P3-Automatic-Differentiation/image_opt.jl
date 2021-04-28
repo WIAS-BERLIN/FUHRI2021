@@ -9,8 +9,39 @@ using DiffResults
 #####
 #####
 #
-# PROJECT DESCRIPTION AND TASKS
+# DISCOVER THE FILTER
 #
+# The repository contains two images, the original one 
+#
+#   source_img = load('./res/juergen_256.jpg')
+# 
+# and its noisy copy 
+#
+#   target_img = load('./res/juergent_256.jpg'). 
+#
+# The task is to find a low-dimensional transform() of the original image such that 
+# its gray channel 
+# 
+#   Gray.(transform(source_img))  
+#
+# approximates closely the gray channel of the noisy copy
+#
+#   Gray.(target_img)
+#
+# Subtasks:
+#  1) **apply_convolution!(result, input, filter)**  convolutes a 'filter' with the gray channel
+#    of the'input' image and records the convolution in the 'result'. Admissible filters are arrays of floats with length = n^2 + 1.
+#    The function objective_function(filter), contained in the main() routine, is provided to measure 
+#    the distance of the gray channels. Explore the effects of the convolution on the 'source_img' depending 
+#    with filters of different lengths. 
+#
+#  2) Optimize the objective_function(filter) using the provided newton_advanced() developed in the Pluto notebook.
+#     How does the computational complexity of the optimization depend on the filter dimension? Would an alternative
+#     implementation of the Newton method with automatic backward differentiation help to reduce the computational cost?
+#
+#  3) Suggest and implement a parametrization of the convolution that reduces the computational cost of the optimization
+#     so that application of larger filters is feasible. What is the minimum distance between the target image and the 
+#     image transformed with the reduced filter?
 ####
 ####
 
