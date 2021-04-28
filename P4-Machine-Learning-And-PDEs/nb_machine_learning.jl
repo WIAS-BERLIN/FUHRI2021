@@ -16,19 +16,23 @@ begin
 			 "DiffEqSensitivity", 
 			 "Optim",
 			 "GalacticOptim",
-			 "PlutoUI"])
+			 "PlutoUI"]) # it is a good idea to test if CUDA is available
+
+	using Plots
+	using Markdown
+	
 	using OrdinaryDiffEq
+	using Statistics
+	using DiffEqFlux
+	using Flux
+	using DiffEqSensitivity
 	using ModelingToolkit
 	using DataDrivenDiffEq
-	using LinearAlgebra
-	using DiffEqSensitivity
 	using Optim
-	using DiffEqFlux, Flux	
-	using Plots
-	using Statistics
 	using GalacticOptim
+	using LinearAlgebra
 	using PlutoUI
-	gr()   # use GR graphics backend
+	gr()   # use Plotly graphics backend
 end
 
 # ╔═╡ 631a008c-a667-11eb-3af0-e99874435c33
@@ -116,7 +120,7 @@ end
 
 # ╔═╡ ab36c055-a97a-4204-81f8-26a5152b56e5
 md"""
-### 1.1 Automated Identification of Nonlinear Interactions based on noisy measurements
+### 1.1 Creating noisy mesurements
 """
 
 # ╔═╡ 7efe7664-302b-4cbf-a276-098fdf7ef4b4
@@ -449,13 +453,288 @@ See [A. Bills,  S.  Sripad,  W.  L.  Fredericks,  M. Guttenberg,   D.   Charles,
 
 """
 
+# ╔═╡ b81b977e-5163-4a99-a44d-a4849ca5bff5
+md"""
+## 2. Fisher-KPP equation
+
+Next, we consider a PDE example, namely, the famous Fischer-KPP equation:
+
+$\begin{equation}
+\partial_t \rho = D \partial_{xx} \rho + r \rho(1{-}\rho)
+\end{equation}$
+
+subject to periodic boundary conditions. In particular, we consider $x\in(0,1)$
+and $t\in[0,T]$. Here, $\rho$ represents population density of a species, $r>0$ 
+is the local growth rate and $D>0$ is the diffusion coefficient. 
+
+We aim to reconstruct the (discrete) equation 
+via neural networks for the reaction  and the diffusion term
+
+$\begin{equation}
+\partial_t \tilde\rho = \tilde D\tilde\Delta\tilde \rho +\tilde F_\theta(\tilde \rho).
+\end{equation}$
+
+### 2.1 Generating training data
+First we set the diffusion coefficient and the reaction rate
+"""
+
+# ╔═╡ 41ae0ff3-c903-4b05-851d-7d6ed33cd34d
+begin
+	D = 0.01;
+	r = 1.0;
+	nothing
+end
+
+# ╔═╡ 8adbfa98-627c-4565-b1f0-cd68100286ab
+md"""
+For the spatial and temporal discretization, we set
+"""
+
+# ╔═╡ 03341e4f-5c58-473d-ac3d-071b99b2032f
+begin
+	X  = 1.0;   # domain
+	Tf = 5;     # time horizon
+	dx = 0.04;  # space discretization
+	dt = Tf/10;  # time step
+	x  = collect(0:dx:X);
+	s  = collect(0:dt:Tf);
+	Nx = Int64(X/dx+1);
+	Nt = Int64(Tf/dt+1);
+	nothing
+end
+
+# ╔═╡ a3155cee-d86a-457c-a929-9fede7aadaef
+md"""
+The initial condition is given by
+"""
+
+# ╔═╡ d03ae9c2-38c6-445a-baf0-13c5342caa6f
+begin
+	Amp = 1.0;
+	Delta = 0.2
+	rho0 = Amp*(tanh.((x .- (0.5 - Delta/2))/(Delta/10)) - tanh.((x .- (0.5 + Delta/2))/(Delta/10)))/2
+	nothing
+end
+
+# ╔═╡ 76eebfce-1ea4-4fc9-bf4d-05ce1d5f4ec1
+plot(x,rho0, lw = 3, label = "Initial condition", xlabel = "x", ylabel = "ρ₀")
+
+# ╔═╡ a76a8dd8-3fc6-4d33-8c9e-71e67af431c4
+md"""
+Define reaction term and discrete Laplacian with periodic boundary conditions.
+"""
+
+# ╔═╡ 1d4634dc-8af1-4371-b36b-177863e05e6b
+begin
+	reaction(u) = r * u .* (1 .- u)
+	lap = diagm(0 => -2.0 * ones(Nx), 1=> ones(Nx-1), -1 => ones(Nx-1)) ./ dx^2
+	lap[1,end] = 1.0/dx^2
+	lap[end,1] = 1.0/dx^2
+	nothing
+end
+
+# ╔═╡ 52b605f9-cb28-4e3e-91c7-19ce54ff6105
+md"Setup the equation"
+
+# ╔═╡ 66224182-6c81-4ea3-be10-6eb73b9c218b
+function rc_ode(rho, p, t)
+    #finite difference
+    D * lap * rho + reaction.(rho)
+end
+
+# ╔═╡ b40ef72c-f83f-48b5-a5c8-9da6380d6231
+md"Solve the system"
+
+# ╔═╡ 12cb668a-300e-4f98-8a75-86c3531b449b
+begin
+	prob_FKPP = ODEProblem(rc_ode, rho0, (0.0, Tf), saveat=dt)
+	sol = solve(prob_FKPP, Tsit5());
+	ode_data = Array(sol);
+	nothing
+end
+
+# ╔═╡ 46756164-f224-4ac7-9a20-ff6277bc0f31
+md"Plot the solution"
+
+# ╔═╡ 86ef0014-e401-4c08-ab5f-770cb845140f
+contourf(s,x,ode_data, xlabel = "time s", ylabel = "x")
+
+# ╔═╡ 1532c921-4f3e-4c97-8785-84a2da6fed99
+md"""
+### 2.2 Creating the neural network
+
+The neural network for the reaction part is similar as for the Lotka-Volterra model but larger and uses the $\tanh$ function instead of the Gaussian radial basis function.
+
+"""
+
+# ╔═╡ 6a71bcf8-ca8f-4d4d-9451-a3e29b753d59
+begin
+	n_weights = 10
+
+	rx_nn = Chain(Dense(1, n_weights, tanh),
+                Dense(n_weights, 2*n_weights, tanh),
+                Dense(2*n_weights, n_weights, tanh),
+                Dense(n_weights, 1),
+                x -> x[1])
+end
+
+# ╔═╡ 74445bb5-5c55-438d-b413-8056f6bd7c6a
+md"The neural network for the diffusion part is of convolutional type, it is supposed to approximate the stencil $(1, -2, 1)$. Since our input is a two-dimensional array, the weights have to be reshaped into a 4-dimensional array. The bias is set to zero. We add padding to incoporate the periodic boundary conditions."
+
+# ╔═╡ 78deaba4-ee72-4d33-bd8a-cac34ba8ac90
+begin
+	w_err = 0.0
+	init_w = reshape([1.1 -2.5 1.0], (3, 1, 1, 1))
+	diff_cnn_ = Conv(init_w, [0.], pad=(0,0,0,0))
+end
+
+# ╔═╡ 4a1d833b-6f4b-4eab-8709-5c820bbfbc8d
+md"We set a initial guess for the diffusion coefficient. In particular, it should be close to `D/dx^2=6.25`."
+
+# ╔═╡ d9c9e922-8281-46e5-bb43-47e80c750db2
+D₀ = [6.5];
+
+# ╔═╡ 2771c663-bee2-4763-94eb-08d22e430e21
+md"""We have to glue the NNs for the reaction part, the diffusion stencil, and the diffusion coefficient together. This is achieved as follows:"""
+
+# ╔═╡ c9a91eb0-fdd7-4804-b458-fd54ecc1ec3a
+begin
+	θ₁, re1 = Flux.destructure(rx_nn)
+	θ₂, re2 = Flux.destructure(diff_cnn_)
+	θₜ = [θ₁; θ₂; D₀]
+	full_restructure(θₜ) = re1(θₜ[1:length(θ₁)]),re2(θₜ[(length(θ₁)+1):end-1]),θₜ[end]
+end
+
+# ╔═╡ 4d0ee20c-980d-41c9-8806-59ebb6c5d743
+md"We construct the ODE system that is given by the combined NN. Note that we use `end` here for the parameter array `p` since the stencil is stored at the fourth, third,and second last position in the array."
+
+# ╔═╡ a328db69-e3d7-4e67-be5d-303befeb4ecf
+function nn_ode(u,p,t)
+    rx_nn = re1(p[1:length(θ₁)])
+	# periodic boundary condition left
+    u_cnn_1   = [p[end-4] * u[end] + p[end-3] * u[1] + p[end-2] * u[2]]
+	# discrete NN-Laplacian
+    u_cnn     = [p[end-4] * u[i-1] + p[end-3] * u[i] + p[end-2] * u[i+1] for i in 2:Nx-1]
+	# periodic boundary condition right
+    u_cnn_end = [p[end-4] * u[end-1] + p[end-3] * u[end] + p[end-2] * u[1]]
+	
+	# sum of reaction and diffusion part, `p[end]` is the scaled diffusion coeff
+    [rx_nn([u[i]])[1] for i in 1:Nx] + p[end] * vcat(u_cnn_1, u_cnn, u_cnn_end)
+end
+
+# ╔═╡ a8a43d16-6b3b-41bf-9abc-3c527687c891
+md"We solve the NN ODE system. For some reason we have to use `concrete_solve` here"
+
+# ╔═╡ 4127d2bc-29fc-494d-a1e6-1a5de5c75667
+begin
+	prob_nn_FKPP = ODEProblem(nn_ode, rho0, (0.0, Tf), θₜ)
+	sol_nn_FKPP = concrete_solve(prob_nn_FKPP,Tsit5(), rho0, θₜ)
+	nothing
+end
+
+# ╔═╡ e01e4c8d-2b28-4edc-ab6e-f9b50ee4953d
+md"""It remains to define a loss function. This is given by the $\ell^2$ norm of the difference of NN solution and measurements. Moreover, we force the weights of the CNN (i.e. the stencil) to add up to zero."""
+
+# ╔═╡ bb228f64-6436-44ee-8ec8-fb36da8af45e
+begin
+	function predict_rd(θ)
+Array(concrete_solve(prob_nn_FKPP,Tsit5(),rho0,θ,saveat=dt,sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP())))
+	end
+
+	function loss_rd(p)
+    	pred = predict_rd(p)
+    	sum(abs2, ode_data .- pred) + 10^2 * abs(sum(p[end-4 : end-2])), pred
+	end
+end
+
+# ╔═╡ ca0a9d61-d52b-4ca7-8f78-27206a3ce869
+md"""We define a callback that saves the losses for each step."""
+
+# ╔═╡ 32e57e24-8367-4f22-800e-25f6b4696fec
+begin
+	losses_FKPP = Float32[]
+	cb_FKPP = function (p,l,pred)
+		push!(losses_FKPP, l) # append to losses array
+		if length(losses_FKPP)%5 == 0
+			println("Current loss after $(length(losses_FKPP)) iterations: $(losses_FKPP[end])")
+		end
+		false
+	end
+end
+
+# ╔═╡ cdd6c044-2f29-4643-aeb1-e513f08fa4a8
+md"Do the actual training using again a combinition of ADAM and BFGS."
+
+# ╔═╡ 8a5f9713-8076-45d0-b722-c55fa40251b2
+begin
+	println("Starting first run with ADAM")
+	res1_FKPP = DiffEqFlux.sciml_train(loss_rd, θₜ, ADAM(0.001), cb=cb_FKPP, maxiters = 100);
+	println("Finished first run with ADAM")
+end
+
+# ╔═╡ aafd511f-9d25-40d6-96d5-decc85eeb1b8
+begin
+		println("Starting second run with ADAM")
+	res2_FKPP = DiffEqFlux.sciml_train(loss_rd, res1_FKPP.minimizer, ADAM(0.001), cb=cb_FKPP, maxiters = 300);
+	println("Finished second run with ADAM")
+end
+
+# ╔═╡ 0712b202-916f-4392-92f6-706398b9c1a2
+begin
+#	res3_FKPP = DiffEqFlux.sciml_train(loss_rd, res2_FKPP.minimizer, BFGS(), cb=cb_FKPP, maxiters = 1000)
+end
+
+# ╔═╡ a94a2c7e-aadd-4ad1-bc3a-8a92615d80ee
+md"""
+### 2.3 Results
+Let us first plot the predicted solution.
+"""
+
+# ╔═╡ 8f15c13f-e610-4947-bdcb-30c15cd4c340
+begin
+	pstar2=res2_FKPP.minimizer
+	reaction_nn(ρ) = rx_nn(ρ, pstar2)
+	cur_pred = predict_rd(pstar2)
+	contourf(s,x,cur_pred, xlabel = "time s", ylabel = "x")
+end
+
+
+# ╔═╡ d0b2446d-909d-4ef5-aa2f-7af5633a536e
+md"and the difference to the original solution."
+
+# ╔═╡ de635870-9f54-4d99-83ce-5e8c763d4f1e
+contourf(s,x,ode_data-cur_pred, xlabel = "time s", ylabel = "x")
+
+# ╔═╡ 85fee47e-d687-4591-ad2b-c51085be9315
+md"Output the diffusion coefficient"
+
+# ╔═╡ 03fe3e46-37ed-4190-9943-529e4b5eb629
+D_pred = pstar2[end]
+
+# ╔═╡ 8d8b34e8-11bc-4390-994a-2b5dc7d040cd
+md"the predicted stencil"
+
+# ╔═╡ 8af620ee-2d3b-446c-95ba-cc55a4a10cef
+pstar2[end-4:end-2]
+
+# ╔═╡ ae1dc823-05c5-4756-a70b-b4da12d474a7
+md"And plot the predicted reaction term"
+
+# ╔═╡ 889e55ac-17ba-4e51-ab66-a97781737b8f
+begin
+	ρ=collect(0:0.01:1)
+	react = re1(pstar2[1:length(θ₁)])
+	plot(ρ,react.([[elem] for elem in ρ]), label= "predicted reaction term", lw = 3)
+	plot!(ρ,reaction.(ρ), label = "true reaction term", lw = 3)
+end
+
 # ╔═╡ b90c266e-164a-431c-8aa4-fda02401f4c9
 TableOfContents()
 
 # ╔═╡ Cell order:
 # ╟─631a008c-a667-11eb-3af0-e99874435c33
 # ╠═fdb7be1f-94ab-4c3f-a5fb-05d8433d8e16
-# ╠═56747210-79d6-4862-a5b2-1a707d713c93
+# ╟─56747210-79d6-4862-a5b2-1a707d713c93
 # ╠═c7475b08-ebbd-4d33-9320-24f67b72b9c5
 # ╟─8bd1dec7-a592-4980-8f2f-f35cdb829096
 # ╠═e352104e-d543-4b01-a905-06f14728fed6
@@ -534,4 +813,49 @@ TableOfContents()
 # ╟─92be4059-19f8-4c3c-893c-29933d74959b
 # ╠═c40053ec-964b-402f-b705-458d93361983
 # ╟─aee901dc-e5a6-4ed8-af0c-16b3924c989c
-# ╠═b90c266e-164a-431c-8aa4-fda02401f4c9
+# ╟─b81b977e-5163-4a99-a44d-a4849ca5bff5
+# ╠═41ae0ff3-c903-4b05-851d-7d6ed33cd34d
+# ╟─8adbfa98-627c-4565-b1f0-cd68100286ab
+# ╠═03341e4f-5c58-473d-ac3d-071b99b2032f
+# ╟─a3155cee-d86a-457c-a929-9fede7aadaef
+# ╠═d03ae9c2-38c6-445a-baf0-13c5342caa6f
+# ╠═76eebfce-1ea4-4fc9-bf4d-05ce1d5f4ec1
+# ╟─a76a8dd8-3fc6-4d33-8c9e-71e67af431c4
+# ╠═1d4634dc-8af1-4371-b36b-177863e05e6b
+# ╟─52b605f9-cb28-4e3e-91c7-19ce54ff6105
+# ╠═66224182-6c81-4ea3-be10-6eb73b9c218b
+# ╟─b40ef72c-f83f-48b5-a5c8-9da6380d6231
+# ╠═12cb668a-300e-4f98-8a75-86c3531b449b
+# ╟─46756164-f224-4ac7-9a20-ff6277bc0f31
+# ╠═86ef0014-e401-4c08-ab5f-770cb845140f
+# ╟─1532c921-4f3e-4c97-8785-84a2da6fed99
+# ╠═6a71bcf8-ca8f-4d4d-9451-a3e29b753d59
+# ╟─74445bb5-5c55-438d-b413-8056f6bd7c6a
+# ╠═78deaba4-ee72-4d33-bd8a-cac34ba8ac90
+# ╟─4a1d833b-6f4b-4eab-8709-5c820bbfbc8d
+# ╠═d9c9e922-8281-46e5-bb43-47e80c750db2
+# ╟─2771c663-bee2-4763-94eb-08d22e430e21
+# ╠═c9a91eb0-fdd7-4804-b458-fd54ecc1ec3a
+# ╟─4d0ee20c-980d-41c9-8806-59ebb6c5d743
+# ╠═a328db69-e3d7-4e67-be5d-303befeb4ecf
+# ╟─a8a43d16-6b3b-41bf-9abc-3c527687c891
+# ╠═4127d2bc-29fc-494d-a1e6-1a5de5c75667
+# ╟─e01e4c8d-2b28-4edc-ab6e-f9b50ee4953d
+# ╠═bb228f64-6436-44ee-8ec8-fb36da8af45e
+# ╟─ca0a9d61-d52b-4ca7-8f78-27206a3ce869
+# ╠═32e57e24-8367-4f22-800e-25f6b4696fec
+# ╟─cdd6c044-2f29-4643-aeb1-e513f08fa4a8
+# ╠═8a5f9713-8076-45d0-b722-c55fa40251b2
+# ╠═aafd511f-9d25-40d6-96d5-decc85eeb1b8
+# ╟─0712b202-916f-4392-92f6-706398b9c1a2
+# ╟─a94a2c7e-aadd-4ad1-bc3a-8a92615d80ee
+# ╟─8f15c13f-e610-4947-bdcb-30c15cd4c340
+# ╟─d0b2446d-909d-4ef5-aa2f-7af5633a536e
+# ╟─de635870-9f54-4d99-83ce-5e8c763d4f1e
+# ╟─85fee47e-d687-4591-ad2b-c51085be9315
+# ╠═03fe3e46-37ed-4190-9943-529e4b5eb629
+# ╟─8d8b34e8-11bc-4390-994a-2b5dc7d040cd
+# ╠═8af620ee-2d3b-446c-95ba-cc55a4a10cef
+# ╟─ae1dc823-05c5-4756-a70b-b4da12d474a7
+# ╠═889e55ac-17ba-4e51-ab66-a97781737b8f
+# ╟─b90c266e-164a-431c-8aa4-fda02401f4c9
