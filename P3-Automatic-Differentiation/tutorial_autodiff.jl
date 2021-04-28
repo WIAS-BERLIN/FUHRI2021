@@ -1,11 +1,14 @@
 ### A Pluto.jl notebook ###
-# v0.14.2
+# v0.14.3
 
 using Markdown
 using InteractiveUtils
 
 # ╔═╡ 5cb08a46-a0f0-11eb-3aaa-03f9763dcb75
 begin
+	#comment the next two lines in two install the packages from Pluto
+	#using Pkg
+	#Pkg.add(["PlutoUI","ForwardDiff","DiffResults","ReverseDiff"])
 	using ForwardDiff
 	using DiffResults
 	using ReverseDiff
@@ -25,8 +28,9 @@ This tutorial gives some first insight into the automatic differentiation featur
 - [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl)
 - [DiffResults](https://github.com/JuliaDiff/DiffResults.jl)
 - [ReverseDiff](https://github.com/JuliaDiff/ReverseDiff.jl)
+- Pluto.jl and PlutoUI.jl
 
-On the right-hand side you should see a table of contents.
+After all packages ar loaded you should see the table of contents on the right-hand side.
 
 """
 
@@ -67,9 +71,9 @@ In other words: Evaluating the function in the dual number $(a + 1\epsilon)$ giv
 **Key point**: If the function $f$ can be also evaluated in dual numbers, one can obtain its derivatives 'automatically' on basis of the dual number operations above!
 Due to Julia's on demand compilation and type dispatching, there will be two compiled versions of f(x<:Real), one for e.g. x::Float64 and one for the corressponding dual numbers (which is still a subtype of Real).
 
-Details on the actual implementation of the dual numbers can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/dev/how_it_works/)
+Details on the actual implementation of the dual numbers and its operation by operator overloading can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/dev/how_it_works/). Observe that DualNumbers are indeed a subtype of Real.
 
-**Exercise**: Compute the derivative of $f(x) = (x-1)(x-2)$ at $x = 3$ by hand using dual numbers, i.e. compute $f(3 + \epsilon)$.
+**Exercise 1**: Compute the derivative of $f(x) = (x-1)(x-2)$ at $x = 3$ by hand using dual numbers, i.e. compute $f(3 + \epsilon)$.
 
 """
 
@@ -130,13 +134,11 @@ Text("  f(z) = $(f(z))\n df(z) = $(df(z))\nd2f(z) = $(d2f(z))")
 # ╔═╡ 271511b3-c5e5-4ca2-ab79-5372b9f9a616
 md"""
 
-### Exercise Block 1
+**Exercise 2.1** : Check what you have computed by hand in the dual number exercise above.
 
-**Exercise 1.1** : Compute the derivative of the function $f(z) = (z+1)\exp(-z^2)$ at z = 1. (You just have to manipulate the function f and z above.) Also check what you have computed by hand in the dual number exercise above.
+**Exercise 2.2** : Try discontinuous functions to see what happens, e.g. $f(z) = \lvert z \rvert$ around $z = 0$ or $f(z) = e^{-1/z^2}$ at $z = 0$.
 
-**Exercise 1.2** : Try discontinuous functions to see what happens, e.g. $f(z) = \lvert z \rvert$ around $z = 0$ or $f(z) = e^{-1/z^2}$ at $z = 0$.
-
-**Exercise 1.3** : Write a Newton method to solve $f(z) = 0$ where you compute the gradient of $f$ by ForwardDiff. Test your implementtion with $f(z) = z^2 - 2$. (You can reveal the Solution by pressing on the eye symbol on the left side of the next hidden box.)
+**Exercise 2.3** : Write a Newton method to solve $f(z) = 0$ where you compute the gradient of $f$ by ForwardDiff. Test your implementtion with $f(z) = z^2 - 2$. (You can reveal a possible solution by pressing on the eye symbol on the left side of the next hidden box.)
 
 """
 
@@ -260,20 +262,12 @@ end
 # ╔═╡ 6e721e97-fd41-45d5-bf66-ef6f82caa126
 md"""
 
-### Exercise Block 2
-
-**Exercise 2.1** : Rewrite your Newton method so that it handles vector-valued functions $G : \mathbb{R}^n \rightarrow \mathbb{R}^n$ and use DiffResults.JacobianResult as a buffer. (Reveal the box below to see a possible solution.)
-
+**Exercise 3** :
+Implement an improved Newton method that can be applied to vector-valued functions $G : \mathbb{R}^n \rightarrow \mathbb{R}^n$ and that uses DiffResults.JacobianResult as a buffer. 
 """
 
-# ╔═╡ 8ba620fc-b84c-4f62-a2c4-deb7c49b6e67
-begin
-	init = [0.5,0.5,0.5]
-	function G(x)
-		return x[1] .* [x[1]^2-2,x[2]^2-3,x[3]^2 - 4]
-	end
-	Text("Enter initial guess and function G here:")
-end
+# ╔═╡ a28ad4b6-80ec-43a6-8eea-8956d633a5a2
+md""" (Reveal the box below to see a possible solution.) """
 
 # ╔═╡ a5b4455b-3d9d-4d98-958f-a3b23e607760
 begin
@@ -297,12 +291,25 @@ function newton_advanced(F::Function, init; maxits = 100, tol = 1e-12)
 		end
 	end
 end
-res2 = newton_advanced(G, init)
-if res2[4] == true
-	Text("After $(res2[3]) iterations arrived at...\n\t  z = $(res2[1])\n\tf(z)= $(res2[2])")
-else
-	Text("Stopped after $(res2[3]) iterations with...\n\t  z = $(res2[1])\n\tf(z)= $(res2[2])")
 end
+
+# ╔═╡ 1302357d-2ea7-4efa-a101-952d338135f8
+md""" Test your functions with the initial value and function G below """
+
+# ╔═╡ e24bab60-d18b-41f3-99ad-9d7af45fb246
+begin
+	init = [0.5,0.5,0.5]
+	function G(x)
+		return x[1] .* [x[1]^2-2, x[2]^2-3, x[3]^2 - 4]
+	end
+
+	# call Newton method
+	res2 = newton_advanced(G, init)
+	if res2[4] == true
+		Text("After $(res2[3]) iterations arrived at...\n\t  z = $(res2[1])\n\tf(z)= $(res2[2])")
+	else
+		Text("Stopped after $(res2[3]) iterations with...\n\t  z = $(res2[1])\n\tf(z)= $(res2[2])")
+	end
 end
 
 # ╔═╡ 8519854d-7fd9-4b92-b032-4a902a99d12c
@@ -312,11 +319,58 @@ md"""
 
 ## Reverse differentiation
 
-There is also a [ReverseDiff.jl](https://github.com/JuliaDiff/ReverseDiff.jl) package with a completely different approach. In the reverse mode the function is first split into a 'forward pass' which is a series of single operations with known derivatives which are then multiplied together according to the chain rule (called 'reverse pass').
+There is also a [ReverseDiff.jl](https://github.com/JuliaDiff/ReverseDiff.jl) package with a different approach. Here, the function is represented as a directed graph consisting of a series of single operations with known derivatives which then can be multiplied together forward or backward according to the chain rule.
 
-It might be the better alternative for high-dimensional gradients or functions with a number of input parameters that is larger than the output dimension. Another reverse mode automatic differentiation package is [Zygote.jl](https://github.com/FluxML/Zygote.jl) that is used in the FluxML community.
+Backward differentiation might be the better alternative for high-dimensional gradients or functions with a number of input parameters that is larger than the output dimension.
 
+### Forward vs. backward pass
 
+To illustrate what is happening in backward differentiation compared to forward differentiation consider the function
+
+$f(x_1,x_2) = x_1x_2 + \sin(x_1)$
+
+and have a look at these two images (taken from [Wikipedia:Automatic_Differentiation](https://en.wikipedia.org/wiki/Automatic_differentiation)):
+
+"""
+
+# ╔═╡ a089a751-9cc1-4dc0-8725-c84b910ecbcb
+begin
+	struct Wow
+		filename
+	end
+
+	function Base.show(io::IO, ::MIME"image/png", w::Wow)
+		write(io, read(w.filename))
+	end
+end
+
+# ╔═╡ 44abd928-22ba-453d-9680-ada271c4078b
+Wow("res/forward.png")
+
+# ╔═╡ ff11ab45-8c56-44b4-b2f1-f6d038dc08b6
+md"""
+In the **forward pass**
+- the evaluation of the function is serialised into a directed graph consisting of singular operations (red circles) and their intermediate results $w_k$ with known simple derivatives
+- using seeds $\dot w_j = 1$ and going through the graph from bottom to top partial derivatives  $\dot w_k = \partial w_k / \partial {x_j}$
+- equivalent to evaluating the chain rule from inside to outside
+- that is similar to using Dual numbers !
+"""
+
+# ╔═╡ 9bffc36b-9547-4ab3-92c3-405e500addd5
+Wow("res/backward.png")
+
+# ╔═╡ dc09ce8c-b27f-4e93-b741-aa1d461e3efa
+md"""
+In the **backward pass**
+- the same graph is traversed backward starting with a seed $\bar f$ for the change of the output
+- now in red: $\bar w_k$ denotes the adjoint $\bar w_k = \partial f / \partial w_k$
+- equivalent to traversing the chain rule from outside to inside
+- hence in the backward pass one seed in $f$ gives the full gradient (instead of two seeds in the forward mode)
+- backward pass is better if number of input arguments is larger than number of output arguments, but also needs more memory to store instructions for the backward pass ('tape')
+"""
+
+# ╔═╡ 4f4f8076-cc54-40ff-8dee-2c84d46e6e8b
+md"""
 ### Example with ReverseDiff.jl
 
 Finally, let's have at least one small example how to use ReverseDiff.jl for some scalar-valued function $h : \mathbb{R}^{n \times n} \times \mathbb{R}^{n \times n} \rightarrow \mathbb{R}$ that takes two matrices as input.
@@ -329,23 +383,28 @@ begin
 	h(A,B) = sum(A .* B + A' * B + A * B') # modify it if you like
 end
 
+# ╔═╡ 466a4c45-5889-4c70-854d-84bbeb013894
+md""" Next, we pre-compile the tape for the gradient evaluation """
+
 # ╔═╡ 46070ab8-dd40-4cb2-91a2-28f24813d125
 begin
 	# record/compile tape for A, B being each nxn matrices
 	const h_tape = ReverseDiff.GradientTape(h, (rand(n,n), rand(n,n)))
 	const compiled_h_tape = ReverseDiff.compile(h_tape)
-	Text("Next, we pre-compile the gradient evaluation")
 end
+
+# ╔═╡ 56b58ecf-87ce-4ed1-a38a-b817f2593ead
+md""" Here you can define two matrices to use for the gradient evaluation: """
 
 # ╔═╡ 23ddd62b-5d9c-4101-b97c-f2f09d8b9c79
 begin
 	A = ones(Float64,n,n)
 	B = -3*ones(Float64,n,n)
-	Text("Here you can define the two input matrices you want to use")
+	A,B
 end
 
 # ╔═╡ 847291ec-4fb2-43f0-8838-f6f5fe4fd2f6
-Text("And this is the evaluation of Dh(A,B)=(dhdA,dhdB)=")
+md""" And this is the evaluation of $Dh(A,B)=(dhdA,dhdB)=$ """
 
 # ╔═╡ c306dd15-e43a-465f-9671-cb6e496d3de8
 begin
@@ -353,6 +412,15 @@ begin
 	results = (similar(A), similar(B))
 	ReverseDiff.gradient!(results, compiled_h_tape, (A,B))
 end
+
+# ╔═╡ a998034d-c2c0-419f-898c-f2cf82814683
+md"""
+
+## Hackathon project
+
+In the remaining time we want to work on some project that can be found in the file image_opt.jl.
+
+"""
 
 # ╔═╡ Cell order:
 # ╟─d4c4e2f4-ba74-400d-aee1-d5ac2c63ee19
@@ -383,11 +451,22 @@ end
 # ╟─73784db5-11d6-4758-946c-b1a065a7d64b
 # ╠═2e954113-6e77-4936-83f1-58bb346aeb88
 # ╟─6e721e97-fd41-45d5-bf66-ef6f82caa126
-# ╠═8ba620fc-b84c-4f62-a2c4-deb7c49b6e67
+# ╟─a28ad4b6-80ec-43a6-8eea-8956d633a5a2
 # ╟─a5b4455b-3d9d-4d98-958f-a3b23e607760
+# ╟─1302357d-2ea7-4efa-a101-952d338135f8
+# ╟─e24bab60-d18b-41f3-99ad-9d7af45fb246
 # ╟─8519854d-7fd9-4b92-b032-4a902a99d12c
+# ╟─a089a751-9cc1-4dc0-8725-c84b910ecbcb
+# ╟─44abd928-22ba-453d-9680-ada271c4078b
+# ╟─ff11ab45-8c56-44b4-b2f1-f6d038dc08b6
+# ╟─9bffc36b-9547-4ab3-92c3-405e500addd5
+# ╟─dc09ce8c-b27f-4e93-b741-aa1d461e3efa
+# ╟─4f4f8076-cc54-40ff-8dee-2c84d46e6e8b
 # ╠═a99b4512-b820-434e-88e5-d58a04689b0c
+# ╟─466a4c45-5889-4c70-854d-84bbeb013894
 # ╠═46070ab8-dd40-4cb2-91a2-28f24813d125
+# ╟─56b58ecf-87ce-4ed1-a38a-b817f2593ead
 # ╠═23ddd62b-5d9c-4101-b97c-f2f09d8b9c79
 # ╟─847291ec-4fb2-43f0-8838-f6f5fe4fd2f6
 # ╠═c306dd15-e43a-465f-9671-cb6e496d3de8
+# ╟─a998034d-c2c0-419f-898c-f2cf82814683
