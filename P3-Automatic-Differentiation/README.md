@@ -1,7 +1,7 @@
 Julia Hackathon -- Automatic Differentiation
 ============================================
 
-This project explores some of the automatic differentiability capabilities of Julia, mainly the ForwardDiff.jl package. We start with a tutorial that
+This project explores some of the automatic differentiation capabilities of Julia, mainly the ForwardDiff.jl package. We start with a tutorial that
 covers some theoretical background, practical use cases and some training exercises. The tutorial is given in the form of an interactive
 Pluto notebook (tutorial_autdiff.jl).
 
@@ -15,7 +15,7 @@ To run the tutorial, please install the following packages via the Julia package
 - ReverseDiff
 - DiffResults
 - Pluto
-- PlutUI
+- PlutoUI
 
 To take part in the project you will need these packages in addition:
 
