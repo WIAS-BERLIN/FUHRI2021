@@ -1,0 +1,175 @@
+---
+--- \example examples/grids/pyramid.grid
+---
+--- Homogeneous list of quadrangular facets.
+--- passed to tetgen as integer nseg x 4 array
+
+a = 1       --- single length unit
+oz = -1     --- offset along z
+l = 15      --- bottom base length
+cx = 0      --- centre of QD (X)
+cy = 0      --- centre of QD (Y)
+lx = -70    --- lower boundary (X)
+ux = 70     --- upper boundary (X)
+ly = -100   --- lower boundary (Y)
+uy = 100    --- upper boundary (Y)
+h = l/2     --- QD height  (45°)
+alpha = 1   --- QD lateral aspect ratio
+
+
+Ht = 12   -- substrate top (hires)
+Hd = 4   -- substrate bottom (hires)
+
+LHt = 48   -- substrate top
+LHd = 46   -- substrate bottom
+
+ifine1 = 5e-7  --  quantum dot
+ifine2 = 5e-6  --  substrate
+
+if params ~= nil then
+
+ l = params.QD_l
+ h = l/2     --- QD height  (45°)
+ 
+ fine1 = params.mesh_fine1_quantum_dot --  quantum dot
+ fine2 = params.mesh_fine2_substrate --  substrate
+ fine3 = params.mesh_fine3_substrate_lores --  substrate
+
+ if params.QD_lateral_aspect_ratio ~= nil then
+  alpha = params.QD_lateral_aspect_ratio
+ end
+ 
+end
+
+
+assert(lx < (cx - 0.5 * l))
+assert(ly < (cy - 0.5 * l))
+assert(ux > (cx + 0.5 * l))
+assert(uy > (cy + 0.5 * l))
+
+
+d110 = l -- math.sqrt(2) * l
+d1_10 = l -- math.sqrt(2) * l
+
+if alpha < 1 then
+ d1_10 = 1/alpha * d110
+end
+
+if alpha > 1 then
+ d110 = alpha * d1_10
+end
+
+r110 = d110/2
+r1_10 = d1_10/2
+
+
+pp = { {cx- r110*1, cy-r110*1    , a+oz}
+      ,{cx+r1_10*1, cy+r1_10*(-1), a+oz}
+      ,{cx+ r110*1, cy+r110*1    , a+oz}
+      ,{cx-r1_10*1, cy-r1_10*(-1), a+oz}
+}
+
+
+
+return {
+   points={
+      {lx, ly, oz},  
+      {ux, ly, oz},
+      {ux, uy, oz},
+      {lx, uy, oz},
+
+      {lx, ly, a+oz},  
+      {ux, ly, a+oz},
+      {ux, uy, a+oz},
+      {lx, uy, a+oz},
+
+      pp[1],
+      pp[2],
+      pp[3],
+      pp[4],
+      
+      {cx, cy, a+h+oz},  -- 13
+      
+      {lx, ly, oz-Hd},  -- 14
+      {ux, ly, oz-Hd},
+      {ux, uy, oz-Hd},
+      {lx, uy, oz-Hd},
+
+      {lx, ly, a+oz+Ht},  -- 18
+      {ux, ly, a+oz+Ht},
+      {ux, uy, a+oz+Ht},
+      {lx, uy, a+oz+Ht},
+      
+      {lx, ly, oz-Hd-LHd},  -- 22
+      {ux, ly, oz-Hd-LHd},
+      {ux, uy, oz-Hd-LHd},
+      {lx, uy, oz-Hd-LHd},
+
+      {lx, ly, a+oz+Ht+LHt},  -- 26
+      {ux, ly, a+oz+Ht+LHt},
+      {ux, uy, a+oz+Ht+LHt},
+      {lx, uy, a+oz+Ht+LHt},
+   },
+   facets={ 
+      {1,2,3,4},
+
+      {1,2,6,5},
+      {2,3,7,6},
+      {3,4,8,7},
+      {4,1,5,8},
+
+      {5,6,10,9},
+      {6,7,11,10},
+      {7,8,12,11},
+      {8,5,9,12},
+
+      {9,10,13},
+      {10,11,13},
+      {11,12,13},
+      {12,9,13},
+
+      {9,10,11,12},  -- inter 
+      
+      -- substrate down
+      {14, 15, 16, 17},
+      {14,  1,  4, 17},
+      {17,  4,  3, 16},
+      {15, 16,  3,  2},
+      {14,  1,  2, 15},
+      
+      -- substrate top
+      {18, 19,  6,  5},
+      { 5, 18, 21,  8},
+      { 8, 21, 20,  7},
+      { 6,  7, 20, 19},
+      {18, 19, 20, 21},
+      
+      -- substrate down (lores)
+      {14+8, 15+8, 16+8, 17+8},
+      {14+8,   14,   17, 17+8},
+      {17+8,   17,   16, 16+8},
+      {16+8,   16,   15, 15+8},
+      {15+8,   15,   14, 14+8},
+      
+      -- substrate top (lores)
+      {18+8,   18,   19, 19+8},
+      {19+8,   19,   20, 20+8},
+      {20+8,   20,   21, 21+8},
+      {21+8,   21,   18, 18+8},
+      {18+8, 19+8, 20+8, 21+8},
+      
+   },
+   facetregions={1, 2,2,2,2, 3,3,3,3, 4,4,4,4, 6, 7,7,7,7,7, 8,8,8,8,8, 9,7,7,7,7, 8,8,8,8,8}, 
+   regionpoints={
+      {cx, cy, oz+a/2},
+      {cx, cy, oz+a+h/2},
+      {cx, cy, oz-Hd/2},
+      {cx, cy, a+oz+h+(Ht-h)/2},
+      {cx, cy, oz-Hd-LHd/2},
+      {cx, cy, a+oz+Ht+LHt/2}
+   },
+   regionnumbers={2,2,1,1,1,1},                    -- 2 = quantum dot, 1 = substrate
+   regionvolumes={fine1,fine1,fine2,fine2,fine3, fine3},
+   flags="paqA"  
+}
+
