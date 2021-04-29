@@ -1,0 +1,177 @@
+---
+--- \example examples/grids/pyramid.grid
+---
+--- Homogeneous list of quadrangular facets.
+--- passed to tetgen as integer nseg x 4 array
+
+
+---- a = 1/40   --- single length unit
+---- oz = 15*a  --- offset along z
+---- l = 14*a   --- bottom base length
+---- c = 0.5    --- centre of QD
+---- h = 4*a    --- QD height
+---- lt = l-2*h --- top base length
+----
+----
+---- Ht = 0.6     -- substrate top
+---- Hd = 0.3   -- substrate bottom
+----
+---- if fine1 == nil then fine1 = 5e-7 end --  quantum dot
+---- if fine2 == nil then fine2 = 5e-6 end --  substrate
+
+
+a = 1       --- single length unit
+oz = -1     --- offset along z
+l = 15      --- bottom base length
+-- lt = l/4    --- tot base length
+cx = 0      --- centre of QD (X)
+cy = 0      --- centre of QD (Y)
+lx = -70    --- lower boundary (X)
+ux = 70     --- upper boundary (X)
+ly = -100   --- lower boundary (Y)
+uy = 100    --- upper boundary (Y)
+h = 3       --- QD height
+lt = l-2*h    --- top base length (45°)
+
+
+Ht = 12   -- substrate top (hires)
+Hd = 4   -- substrate bottom (hires)
+
+LHt = 48   -- substrate top
+LHd = 46   -- substrate bottom
+
+
+fine1 = 0.5 --  quantum dot
+fine2 = 15 --  substrate
+fine3 = 20 --  substrate
+
+if params ~= nil then
+
+ l = params.QD_l
+ h = params.QD_h
+ lt = l-2*h        --- top base length (45°)
+ 
+ fine1 = params.mesh_fine1_quantum_dot --  quantum dot
+ fine2 = params.mesh_fine2_substrate --  substrate
+ fine3 = params.mesh_fine3_substrate_lores --  substrate
+
+end
+
+
+assert(lx < (cx - 0.5 * l))
+assert(ly < (cy - 0.5 * l))
+assert(ux > (cx + 0.5 * l))
+assert(uy > (cy + 0.5 * l))
+
+
+doff = 3
+toff = 3
+
+return {
+   points={
+      {lx, ly, oz},
+      {ux, ly, oz},
+      {ux, uy, oz},
+      {lx, uy, oz},
+
+      {lx, ly, a+oz},
+      {ux, ly, a+oz},
+      {ux, uy, a+oz},
+      {lx, uy, a+oz},
+
+      {cx-0.5*l, cy-0.5*l, a+oz},
+      {cx+0.5*l, cy-0.5*l, a+oz},
+      {cx+0.5*l, cy+0.5*l, a+oz},
+      {cx-0.5*l, cy+0.5*l, a+oz},
+
+      {cx-0.5*lt,cy-0.5*lt,a+h+oz},
+      {cx+0.5*lt,cy-0.5*lt,a+h+oz},
+      {cx+0.5*lt,cy+0.5*lt,a+h+oz},
+      {cx-0.5*lt,cy+0.5*lt,a+h+oz},
+
+      {lx,ly,oz-Hd},  -- 17
+      {ux,ly,oz-Hd},
+      {ux,uy,oz-Hd},
+      {lx,uy,oz-Hd},
+
+      {lx,ly,a+oz+Ht},  -- 21
+      {ux,ly,a+oz+Ht},
+      {ux,uy,a+oz+Ht},
+      {lx,uy,a+oz+Ht},
+
+      {lx, ly, oz-Hd-LHd},  -- 22 ( 25 )
+      {ux, ly, oz-Hd-LHd},
+      {ux, uy, oz-Hd-LHd},
+      {lx, uy, oz-Hd-LHd},
+
+      {lx, ly, a+oz+Ht+LHt},  -- 26 ( 29 )
+      {ux, ly, a+oz+Ht+LHt},
+      {ux, uy, a+oz+Ht+LHt},
+      {lx, uy, a+oz+Ht+LHt},
+
+   },
+   facets={
+      {1,2,3,4},
+
+      {1,2,6,5},
+      {2,3,7,6},
+      {3,4,8,7},
+      {4,1,5,8},
+
+      {5,6,10,9},
+      {6,7,11,10},
+      {7,8,12,11},
+      {8,5,9,12},
+
+      {9,10,14,13},
+      {10,11,15,14},
+      {11,12,16,15},
+      {12,9,13,16},
+
+      {13,14,15,16},
+
+      {9,10,11,12},  -- inter
+
+      -- substrate down
+      {17,18,19,20},
+    --{ 1, 2, 3, 4}, -- f1
+      {17, 1, 4,20},
+      {20, 4, 3,19},
+      {18,19, 3, 2},
+      {17, 1, 2,18},
+
+      -- substrate top
+    --{17,18,19,20},
+      {21,22, 6, 5},
+      { 5,21,24, 8},
+      { 8,24,23, 7},
+      { 6, 7,23,22},
+      {21,22,23,24},
+
+      -- substrate down (lores)
+      {14+8+doff, 15+8+doff, 16+8+doff, 17+8+doff},
+      {14+8+doff,   14+doff,   17+doff, 17+8+doff},
+      {17+8+doff,   17+doff,   16+doff, 16+8+doff},
+      {16+8+doff,   16+doff,   15+doff, 15+8+doff},
+      {15+8+doff,   15+doff,   14+doff, 14+8+doff},
+
+      -- substrate top (lores)
+      {18+8+toff,   18+toff,   19+toff, 19+8+toff},
+      {19+8+toff,   19+toff,   20+toff, 20+8+toff},
+      {20+8+toff,   20+toff,   21+toff, 21+8+toff},
+      {21+8+toff,   21+toff,   18+toff, 18+8+toff},
+      {18+8+toff, 19+8+toff, 20+8+toff, 21+8+toff},
+
+   },
+   facetregions={1, 2,2,2,2, 3,3,3,3, 4,4,4,4, 5, 6, 9,7,7,7,7, 8,8,8,8,8, 7,7,7,7,7, 7,7,7,7,7},
+   regionpoints={{cx, cy , oz+a/2   }
+                ,{cx, cy , oz+a+h/2 }
+                ,{cx, cy , oz-Hd/2  }
+                ,{cx, cy , a+oz+h+(Ht-h)/2}
+                ,{cx, cy , oz-Hd-LHd/2}
+                ,{cx, cy , a+oz+Ht+LHt/2}
+   },
+   regionnumbers={2,2,1,1,1,1},                    -- 1 = quantum dot, 2 = substrate
+   regionvolumes={fine1,fine1,fine2,fine2,fine3,fine3},
+   flags="paqA"
+}

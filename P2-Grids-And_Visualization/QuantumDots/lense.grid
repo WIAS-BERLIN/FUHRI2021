@@ -1,0 +1,305 @@
+
+
+g=gdescCreate(0.000001)   -- eps
+
+
+a = 1       --- single length unit / wl height
+oz = -1     --- offset along z
+l = 15      --- bottom base diam
+lt = l/4    --- tot base length  
+cx = 0      --- centre of QD (X)
+cy = 0      --- centre of QD (Y)
+lx = -70    --- lower boundary (X)
+ux = 70     --- upper boundary (X)
+ly = -100   --- lower boundary (Y)
+uy = 100    --- upper boundary (Y)
+h = l/2       --- QD height (l=2*h => ball)
+
+
+z_shift_wl_qd = 0
+
+Ht = 12   -- substrate top (hires)
+Hd = 4   -- substrate bottom (hires)
+
+LHt = 48   -- substrate top
+LHd = 46   -- substrate bottom
+
+
+--- ball_zscale = 1.0
+
+--- h = l*ball_zscale --  quantum dot height
+
+fine1 = 0.5 --  quantum dot
+fine2 = 15 --  substrate
+fine3 = 20 --  substrate
+
+if params ~= nil then
+
+ l = params.QD_l
+ h = params.QD_h
+-- h = l*params.geo.ball_zscale --  quantum dot height
+
+ fine1 = params.mesh_fine1_quantum_dot --  quantum dot
+ fine2 = params.mesh_fine2_substrate --  substrate
+ fine3 = params.mesh_fine3_substrate_lores --  substrate
+
+ if params.QD_z_shift_wl_qd ~= nil then
+  z_shift_wl_qd = params.QD_z_shift_wl_qd
+ end
+
+ if params.QD_cx ~= nil then
+  cx = params.QD_cx
+ end
+
+ if params.QD_cy ~= nil then
+  cy = params.QD_cy
+ end
+
+end
+
+
+
+PI=3.141592683
+N=10000
+vol=4*PI*l*l*l/(3*N)
+
+function g:circ(n,h,rad,z)
+   local t=0.0
+   local i
+   local c={}
+   for i=1,n do
+     table.insert(c,self:point{cx+rad*math.sin(t),cy+rad*math.cos(t),z})
+     t=t+h
+   end		     
+   return c
+end
+
+function g:xcopy(tab2)
+   local tab1={}
+   local i
+   local n=table.getn(tab2) 
+   for i=1,n do
+      table.insert(tab1,tab2[i])
+   end
+   return tab1
+end
+
+
+function g:plate(n,z,rad,p1,p2,t0,t1)
+   local t=t0
+   local h=2*PI/n
+   local i
+   local fc={}
+   for i=1,n do
+     fc[i]=self:point{cx+rad*math.sin(t),cy+rad*math.cos(t),z}
+     t=t+h
+     if t>t1 then break end
+   end
+   local sz=table.getn(fc)
+   fc[sz+1]=p1
+   fc[sz+2]=p2
+   self:facet(fc)
+end
+
+
+function g:circ2(n,z,rad)
+   local t=0.0
+   local h=2*PI/n
+   local i
+   local c={}
+   for i=1,n do
+     c[i]=self:point{cx+rad*math.sin(t),cy+rad*math.cos(t),z}
+     t=t+h
+   end
+   self:facet(c)
+end
+
+
+function g:ball(rad,vol,zscale,z)
+-- todo: do switches depending on n!
+
+   local h0=((12/1.414)*vol)^(1/3)
+   local n=math.ceil(2*PI*rad/h0)
+   local switch1=false
+   local switch2=false
+   local switch3=true
+   if n>40  then
+      n=math.ceil(n/8)*8
+      switch3=false
+   else
+      n=math.ceil(n/4)*4
+   end
+   local n_max=n
+   local h=2*PI/n
+   local hx=h
+   local s=0
+   local c0=self:circ(n,hx,rad*math.cos(s),rad*math.sin(s)*zscale+z)
+   local c1t=c0
+   local c1b=c0
+   for s=h,PI/2-h,h do
+      if not switch1 and s>PI/4 then
+	 switch1=true
+	 n=n/2
+         hx=2*hx
+      end
+      if not switch2 and s>3*PI/8 then
+	 switch2=true
+	 n=n/2
+         hx=2*hx
+      end
+      if not switch3 and s>7*PI/16 then
+	 switch3=true
+	 n=n/2
+         hx=2*hx
+      end
+
+      local c2t=self:circ(n,hx,rad*math.cos(s),rad*math.sin(s)*zscale+z)
+--    local c2b=self:circ(n,hx,rad*math.cos(s),-rad*math.sin(s)*zscale)
+
+      if table.getn(c1t)==n then
+	 for i=1,n-1 do
+	    self:facet{c1t[i],c1t[i+1],c2t[i+1],c2t[i]}
+--	    self:facet{c1b[i],c1b[i+1],c2b[i+1],c2b[i]}
+	 end
+	 self:facet{c1t[n],c1t[1],c2t[1],c2t[n]}
+--	 self:facet{c1b[n],c1b[1],c2b[1],c2b[n]}
+      else
+	 for i=1,n-1 do
+	    self:facet{c1t[2*i-1],c1t[2*i],c2t[i]}
+	    self:facet{c1t[2*i+1],c1t[2*i],c2t[i+1]}
+	    self:facet{c2t[i],c2t[i+1],c1t[2*i]}
+
+--	    self:facet{c1b[2*i-1],c1b[2*i],c2b[i]}
+--	    self:facet{c1b[2*i+1],c1b[2*i],c2b[i+1]}
+--	    self:facet{c2b[i],c2b[i+1],c1b[2*i]}
+
+	 end
+
+	 self:facet{c1t[2*n-1],c1t[2*n],c2t[n]}
+	 self:facet{c1t[1],c1t[2*n],c2t[1]}
+	 self:facet{c2t[n],c2t[1],c1t[2*n]}
+
+--	 self:facet{c1b[2*n-1],c1b[2*n],c2b[n]}
+--	 self:facet{c1b[1],c1b[2*n],c2b[1]}
+--	 self:facet{c2b[n],c2b[1],c1b[2*n]}
+      end
+      c1t=self:xcopy(c2t)
+--    c1b=self:xcopy(c2b)
+   end
+   local pt=self:point{cx,cy,rad*zscale+z}
+   for i=1,n-1 do
+      self:facet{c1t[i],c1t[i+1],pt}
+   end
+   self:facet{c1t[1],c1t[n],pt}
+--[[
+   pb=self:point{0,0,-rad*zscale}
+   for i=1,n-1 do
+      self:facet{c1b[i],c1b[i+1],pb}
+   end
+   self:facet{c1b[1],c1b[n],pb}
+]]
+  return n_max
+end
+
+
+function g:level_points(z)
+  local p={}
+  
+  p[1]=self:point{lx,ly,z}
+  p[2]=self:point{lx,uy,z}
+  p[3]=self:point{ux,uy,z}
+  p[4]=self:point{ux,ly,z}
+  
+  return p
+end
+
+
+function g:level_facet(pp,lev)
+ self:facet{pp[lev][1],pp[lev][2],pp[lev][3],pp[lev][4]}
+end
+
+function g:level_facet2(pp,lev1,lev2)
+ self:facet{pp[lev1][1],pp[lev1][2],pp[lev2][2],pp[lev2][1]}
+ self:facet{pp[lev1][2],pp[lev1][3],pp[lev2][3],pp[lev2][2]}
+ self:facet{pp[lev1][3],pp[lev1][4],pp[lev2][4],pp[lev2][3]}
+ self:facet{pp[lev1][4],pp[lev1][1],pp[lev2][1],pp[lev2][4]}
+end
+
+
+
+-----------  MAIN  ------------
+
+
+pp={}
+
+pp[1]=g:level_points(z_shift_wl_qd+oz         )  -- wl
+pp[2]=g:level_points(z_shift_wl_qd+oz+a       )  -- qd ground plane
+pp[3]=g:level_points(              oz  -Hd-LHd)  -- substrate down
+pp[4]=g:level_points(              oz+a+Ht+LHt)  -- substrate top
+
+
+
+g:facetregion(2)                 -- wl
+g:level_facet(pp,1)
+
+g:facetregion(2)                 -- wl
+g:level_facet2(pp,1,2)
+
+g:facetregion(3)                 -- qd
+ball_zscale=2*h/l
+ball_radius=l/2
+n_ball=g:ball(ball_radius,vol,ball_zscale,z_shift_wl_qd)
+
+g:facetregion(4)                 -- conect cube and ball
+g:plate(n_ball,z_shift_wl_qd,l/2,pp[2][4],pp[2][3],1*PI/4,3*PI/4+g.eps)
+g:plate(n_ball,z_shift_wl_qd,l/2,pp[2][1],pp[2][4],3*PI/4,5*PI/4+g.eps)
+g:plate(n_ball,z_shift_wl_qd,l/2,pp[2][2],pp[2][1],5*PI/4,7*PI/4+g.eps)
+g:plate(n_ball,z_shift_wl_qd,l/2,pp[2][3],pp[2][2],7*PI/4,9*PI/4+g.eps)
+
+g:facetregion(5)                 -- separate into two volumes
+g:circ2(n_ball,z_shift_wl_qd,l/2)
+
+g:facetregion(5)
+g:level_facet(pp,4)              -- subtrate top
+g:level_facet2(pp,2,4)
+
+g:facetregion(1)                 -- fixed bc plane
+g:level_facet(pp,3)              -- subtrate down
+g:facetregion(5)
+g:level_facet2(pp,1,3)
+
+
+
+g:regionnumber(2)                -- material of wl
+g:regionvolume(fine1)
+g:regionpoint{0,0,z_shift_wl_qd+oz+a/2}
+
+g:regionnumber(2)                -- material of qd
+g:regionvolume(fine1)
+g:regionpoint{cx,cy,z_shift_wl_qd+oz+a+h/2}
+
+
+g:regionnumber(1)                -- material of sub down
+g:regionvolume(fine2)
+g:regionpoint{0,0,oz-Hd-LHd/2}
+
+g:regionnumber(1)                -- material of sub top
+g:regionvolume(fine3)
+g:regionpoint{0,0, a+oz+Ht+LHt/2}
+
+
+
+g.flags="paqA"
+return g
+
+
+
+
+
+
+
+
+
+
+
+
