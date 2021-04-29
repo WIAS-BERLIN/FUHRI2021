@@ -1,15 +1,12 @@
 Julia Hackathon -- Machine learning and PDEs
 ============================================
 
-In this project, we will explore the connections between machine learning and solving of partial differential equations via **Physics-Informed Neural Networks** (PINNs).
+In this project, we will explore the connections between machine learning and of partial differential equations via 
+**Neural Networks**.
 
-We will discuss the background of PINNs and implement solvers for some typical PDE problems.
+We will discuss the identification of the nonlinear interactions in a simple Lotka-Volterra ODE example based on noisy data with the help of neural networks and the Sparse IDentification of Nonlinear Dynamics (SINDy) approach.
+To demonstrate  discovery  of spatiotemporal equations  directly from  data,  weconsider data generated from the one-dimensional Fisher-KPP(Kolmogorov–Petrovsky–Piskunov) PDE.
+To reconstruct the diffusion operator, we will use a convolutional neural network.
 
-The implementation will be based on the `NeuralPDE` package ([GitHub](https://github.com/SciML/NeuralPDE.jl)). To install it simple press `]` in the Julia REPL and then `add NeuralPDE`. Alternatively, you can write directly in the REPL
-
-```Julia
-using Pkg
-Pkg.add("NeuralPDE")
-```
-
-We will upload a Pluto notebook in this repository soon!
+All steps are contained in the Pluto notebook
+`nb_machine_learning.jl`.
