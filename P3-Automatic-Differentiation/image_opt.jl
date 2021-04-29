@@ -5,16 +5,47 @@ using Gtk
 using ForwardDiff
 using DiffResults
 
+#= 
 
-#####
-#####
-#
-# PROJECT DESCRIPTION AND TASKS
-#
-####
-####
+DISCOVER THE FILTER
+--------------------
 
+The repository contains two images, the original one 
 
+    source_img = load('./res/juergen_256.jpg')
+
+and its blurry copy 
+
+    target_img = load('./res/juergent_256.jpg'). 
+
+The task is to find a low-dimensional transform() of the original image such that 
+its gray channel 
+
+    Gray.(transform(source_img))  
+
+approximates closely the gray channel of the blurry copy
+
+    Gray.(target_img)
+
+Subtasks:
+
+1)  **apply_convolution!(result, input, filter)**  convolutes a 'filter' with the gray channel
+    of the'input' image and records the convolution in the 'result'. Admissible filters are arrays of floats with length = n^2.
+    The function objective_function(filter), contained in the main() routine, is provided to measure 
+    the distance of the gray channels. Explore the effects of the convolution on the 'source_img' depending 
+    with filters of different lengths. 
+
+2)  Optimize the objective_function(filter) using the provided newton_advanced() developed in the Pluto notebook.
+    How does the computational complexity of the optimization depend on the filter dimension? 
+
+3)  Suggest and implement a parametrization of the convolution that reduces the computation costs of the optimization
+    so that application of larger filters is feasible. What is the minimum distance between the target image and the 
+    image transformed with the reduced filter?
+
+4)  Would an alternative implementation of the Newton method with automatic backward (or mixed) differentiation help to reduce
+    the computation costs?
+
+=#
 
 
 ## Newton method from previous exercises (see Pluto notebook)
@@ -44,7 +75,7 @@ end
 ## FULL CONVOLUTION FILTER
 function apply_convolution!(result, input, filter)
     input_r, input_c = size(input)
-    filter_r = convert(Int32,sqrt(length(filter)-1))
+    filter_r = convert(Int32,sqrt(length(filter)))
     result_r, result_c = size(result)
     filter_middle = convert(Int32, (filter_r + 1)//2)
     m = convert(Int32, (filter_r - 1)//2)
@@ -62,12 +93,11 @@ function apply_convolution!(result, input, filter)
     fill!(result,0.0)
     for i in 1:result_r
         for j in 1:result_c
-            for f = 1 : length(filter) - 1
+            for f = 1 : length(filter)
                 Ii = max(min(i+II[f],input_r),1)
                 Ij = max(min(j+JJ[f],input_c),1)
                 result[i,j] += input[Ii,Ij] * filter[f]
             end
-            result[i,j] += filter[end]
         end
     end
 end
@@ -92,7 +122,7 @@ function main()
 
     # choose filters for approximating the target image
     n=3 # filter-size
-    filter = rand(n^2)/n^2; append!(filter,[0]) # init value
+    filter = rand(n^2)/n^2 # init value
     filter_function = apply_convolution!
 
     # setup objective function
@@ -116,7 +146,6 @@ function main()
     @show filter
     img_result = Array{Float64,2}(deepcopy(source_gray))
     filter_function(img_result,source_gray, filter)
-    target_gray = Array{Float64,2}(target_gray)
 
     # print distance between the resulting image and the target image
     println("| bestapprox - target | = $(graydiff(target_gray,img_result))")
