@@ -7,6 +7,7 @@ using InteractiveUtils
 # ╔═╡ fdb7be1f-94ab-4c3f-a5fb-05d8433d8e16
 begin
 	using Pkg
+	Pkg.activate(mktempdir())
 	Pkg.add(["OrdinaryDiffEq", 
 			 "DataDrivenDiffEq", 
 			 "ModelingToolkit", 
@@ -120,7 +121,7 @@ end
 
 # ╔═╡ ab36c055-a97a-4204-81f8-26a5152b56e5
 md"""
-### 1.1 Creating noisy mesurements
+### 1.1 Creating noisy measurements
 """
 
 # ╔═╡ 7efe7664-302b-4cbf-a276-098fdf7ef4b4
@@ -252,10 +253,10 @@ end
 md"""Let's start the actually training, we first use the [ADAM algorithm](https://en.wikipedia.org/wiki/Stochastic_gradient_descent#Adam) (Adaptive Moment Estimation) and then use the minimizer for the [BFGS method](https://en.wikipedia.org/wiki/Broyden%E2%80%93Fletcher%E2%80%93Goldfarb%E2%80%93Shanno_algorithm) for better convergence. """
 
 # ╔═╡ c4628747-9420-4c22-922a-9600614935fd
-res1 = DiffEqFlux.sciml_train(loss, θ, ADAM(0.1f0), cb=callback, maxiters = 200)
+res1 = DiffEqFlux.sciml_train(loss, θ, ADAM(0.1f0), cb=callback, maxiters = 200);
 
 # ╔═╡ 2eaa0094-6b7d-4c52-8100-dc36cbcabc8b
-res2 = DiffEqFlux.sciml_train(loss, res1.minimizer, BFGS(initial_stepnorm=0.01f0), cb=callback, maxiters = 10000)
+res2 = DiffEqFlux.sciml_train(loss, res1.minimizer, BFGS(initial_stepnorm=0.01f0), cb=callback, maxiters = 10000);
 
 # ╔═╡ 09983a1a-1148-4336-b4f5-6607400b4a49
 md"""### 1.3 Results
@@ -300,7 +301,7 @@ md"""We trained our network on observations on the time interval $[0,3]. How doe
 
 # ╔═╡ 19ea9b2b-fdf8-4fdb-a9d0-9fb0b03e1dee
 begin
-	T = 4.0f0
+	T = 5.0f0
 	prob_nn_longterm = ODEProblem(nn_dynamics!, Ũ[:,1], (0,T), θ_trained);
 	# compute true solution
 	true_solution = solve(remake(prob, tspan=(0.0,T),p=p_),Tsit5(),saveat=0.1)
@@ -550,7 +551,7 @@ begin
 	prob_FKPP = ODEProblem(rc_ode, rho0, (0.0, Tf), saveat=dt)
 	sol = solve(prob_FKPP, Tsit5());
 	ode_data = Array(sol);
-	nothing
+	
 end
 
 # ╔═╡ 46756164-f224-4ac7-9a20-ff6277bc0f31
@@ -627,10 +628,13 @@ md"We solve the NN ODE system. For some reason we have to use `concrete_solve` h
 
 # ╔═╡ 4127d2bc-29fc-494d-a1e6-1a5de5c75667
 begin
-	prob_nn_FKPP = ODEProblem(nn_ode, rho0, (0.0, Tf), θₜ)
-	sol_nn_FKPP = concrete_solve(prob_nn_FKPP,Tsit5(), rho0, θₜ)
-	nothing
+	prob_nn_FKPP = ODEProblem(nn_ode, rho0, (0.0, Tf), θₜ, saveat=dt)
+	sol_nn_FKPP1 = solve(prob_nn_FKPP,Tsit5())
+	ode_data_nn = Array(sol_nn_FKPP1)
 end
+
+# ╔═╡ f1efc73f-d303-4e43-ab15-57d19eb333fa
+contourf(s,x, ode_data_nn, xlabel = "time s", ylabel = "x")
 
 # ╔═╡ e01e4c8d-2b28-4edc-ab6e-f9b50ee4953d
 md"""It remains to define a loss function. This is given by the $\ell^2$ norm of the difference of NN solution and measurements. Moreover, we force the weights of the CNN (i.e. the stencil) to add up to zero."""
@@ -638,7 +642,9 @@ md"""It remains to define a loss function. This is given by the $\ell^2$ norm of
 # ╔═╡ bb228f64-6436-44ee-8ec8-fb36da8af45e
 begin
 	function predict_rd(θ)
-Array(concrete_solve(prob_nn_FKPP,Tsit5(),rho0,θ,saveat=dt,sensealg=InterpolatingAdjoint(autojacvec=ReverseDiffVJP())))
+Array(solve(prob_nn_FKPP,Tsit5(),u0=rho0, p=θ, saveat=dt, 
+				abstol=1e-6, reltol=1e-6,
+				sensealg = ForwardDiffSensitivity()))
 	end
 
 	function loss_rd(p)
@@ -681,7 +687,14 @@ end
 
 # ╔═╡ 0712b202-916f-4392-92f6-706398b9c1a2
 begin
-#	res3_FKPP = DiffEqFlux.sciml_train(loss_rd, res2_FKPP.minimizer, BFGS(), cb=cb_FKPP, maxiters = 1000)
+	res3_FKPP = DiffEqFlux.sciml_train(loss_rd, res2_FKPP.minimizer, BFGS(initial_stepnorm=0.01f0), cb=cb_FKPP, maxiters = 1000)
+end
+
+# ╔═╡ e6da664d-b65a-4f3f-9fde-c3a7dacba893
+begin
+	plot(1:100, losses_FKPP[1:100], yaxis = :log10, xaxis = :log10, xlabel = "Iterations", ylabel = "Loss", label = "ADAM 1", color = :blue, lw = 3)
+		plot!(101:400, losses_FKPP[101:400], yaxis = :log10, xaxis = :log10, xlabel = "Iterations", ylabel = "Loss", label = "ADAM 2", color = :green, lw = 3)
+	plot!(401:length(losses_FKPP), losses_FKPP[401:end], yaxis = :log10, xaxis = :log10, xlabel = "Iterations", ylabel = "Loss", label = "BFGS", color = :red, lw = 3)
 end
 
 # ╔═╡ a94a2c7e-aadd-4ad1-bc3a-8a92615d80ee
@@ -692,10 +705,9 @@ Let us first plot the predicted solution.
 
 # ╔═╡ 8f15c13f-e610-4947-bdcb-30c15cd4c340
 begin
-	pstar2=res2_FKPP.minimizer
-	reaction_nn(ρ) = rx_nn(ρ, pstar2)
-	cur_pred = predict_rd(pstar2)
-	contourf(s,x,cur_pred, xlabel = "time s", ylabel = "x")
+	pstar3=res3_FKPP.minimizer
+	cur_pred3 = predict_rd(pstar3)
+	contourf(s,x,cur_pred3, xlabel = "time s", ylabel = "x")
 end
 
 
@@ -703,19 +715,19 @@ end
 md"and the difference to the original solution."
 
 # ╔═╡ de635870-9f54-4d99-83ce-5e8c763d4f1e
-contourf(s,x,ode_data-cur_pred, xlabel = "time s", ylabel = "x")
+contourf(s,x,ode_data-cur_pred3, xlabel = "time s", ylabel = "x")
 
 # ╔═╡ 85fee47e-d687-4591-ad2b-c51085be9315
 md"Output the diffusion coefficient"
 
 # ╔═╡ 03fe3e46-37ed-4190-9943-529e4b5eb629
-D_pred = pstar2[end]
+D_pred = pstar3[end]
 
 # ╔═╡ 8d8b34e8-11bc-4390-994a-2b5dc7d040cd
 md"the predicted stencil"
 
 # ╔═╡ 8af620ee-2d3b-446c-95ba-cc55a4a10cef
-pstar2[end-4:end-2]
+pstar3[end-4:end-2]
 
 # ╔═╡ ae1dc823-05c5-4756-a70b-b4da12d474a7
 md"And plot the predicted reaction term"
@@ -723,8 +735,8 @@ md"And plot the predicted reaction term"
 # ╔═╡ 889e55ac-17ba-4e51-ab66-a97781737b8f
 begin
 	ρ=collect(0:0.01:1)
-	react = re1(pstar2[1:length(θ₁)])
-	plot(ρ,react.([[elem] for elem in ρ]), label= "predicted reaction term", lw = 3)
+	react3 = re1(pstar3[1:length(θ₁)])
+	plot(ρ,react3.([[elem] for elem in ρ]), label= "predicted reaction term", lw = 3)
 	plot!(ρ,reaction.(ρ), label = "true reaction term", lw = 3)
 end
 
@@ -840,6 +852,7 @@ TableOfContents()
 # ╠═a328db69-e3d7-4e67-be5d-303befeb4ecf
 # ╟─a8a43d16-6b3b-41bf-9abc-3c527687c891
 # ╠═4127d2bc-29fc-494d-a1e6-1a5de5c75667
+# ╠═f1efc73f-d303-4e43-ab15-57d19eb333fa
 # ╟─e01e4c8d-2b28-4edc-ab6e-f9b50ee4953d
 # ╠═bb228f64-6436-44ee-8ec8-fb36da8af45e
 # ╟─ca0a9d61-d52b-4ca7-8f78-27206a3ce869
@@ -847,9 +860,10 @@ TableOfContents()
 # ╟─cdd6c044-2f29-4643-aeb1-e513f08fa4a8
 # ╠═8a5f9713-8076-45d0-b722-c55fa40251b2
 # ╠═aafd511f-9d25-40d6-96d5-decc85eeb1b8
-# ╟─0712b202-916f-4392-92f6-706398b9c1a2
+# ╠═0712b202-916f-4392-92f6-706398b9c1a2
+# ╟─e6da664d-b65a-4f3f-9fde-c3a7dacba893
 # ╟─a94a2c7e-aadd-4ad1-bc3a-8a92615d80ee
-# ╟─8f15c13f-e610-4947-bdcb-30c15cd4c340
+# ╠═8f15c13f-e610-4947-bdcb-30c15cd4c340
 # ╟─d0b2446d-909d-4ef5-aa2f-7af5633a536e
 # ╟─de635870-9f54-4d99-83ce-5e8c763d4f1e
 # ╟─85fee47e-d687-4591-ad2b-c51085be9315
