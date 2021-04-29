@@ -30,7 +30,7 @@ This tutorial gives some first insight into the automatic differentiation featur
 - [ReverseDiff](https://github.com/JuliaDiff/ReverseDiff.jl)
 - Pluto.jl and PlutoUI.jl
 
-After all packages ar loaded you should see the table of contents on the right-hand side.
+After all packages are loaded you should see the table of contents on the right-hand side.
 
 """
 
@@ -68,10 +68,10 @@ $ f(a+h) = f(a) + f^{(1)}(a) \epsilon $
 
 In other words: Evaluating the function in the dual number $(a + 1\epsilon)$ gives the dual number $(f(a) + f^{(1)}(a) \epsilon)$ as a result.
 
-**Key point**: If the function $f$ can be also evaluated in dual numbers, one can obtain its derivatives 'automatically' on basis of the dual number operations above!
+**Key point**: If the function $f$ can be also evaluated in dual numbers, one can obtain its derivatives 'automatically' on basis of the operator overloaded dual number operations above!
 Due to Julia's on demand compilation and type dispatching, there will be two compiled versions of f(x<:Real), one for e.g. x::Float64 and one for the corressponding dual numbers (which is still a subtype of Real).
 
-Details on the actual implementation of the dual numbers and its operation by operator overloading can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/dev/how_it_works/). Observe that DualNumbers are indeed a subtype of Real.
+Details on the actual implementation of the dual numbers can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/dev/how_it_works/). Observe that DualNumbers are indeed a subtype of Real.
 
 **Exercise 1**: Compute the derivative of $f(x) = (x-1)(x-2)$ at $x = 3$ by hand using dual numbers, i.e. compute $f(3 + \epsilon)$.
 
@@ -80,16 +80,19 @@ Details on the actual implementation of the dual numbers and its operation by op
 # ╔═╡ c9656131-be14-48f3-9386-8320906ae3e5
 begin
 	Text("Reveal this cell completely to see the solution to the exercise above.")
-	#
-	# f(3+ϵ) = (2+ϵ)(1+ϵ) = 2 + 3ϵ + ϵ^2 = 3 + 3ϵ
-	#
-	# Hence, f(3) = 2 and df(3) = 3
-	#
-	# For arbitrary x one obtains
-	# f(x+ϵ) = (x+ϵ-1)(x+ϵ-2) = x^2-3x+2 + ϵ(2x-3)
-	#
-	# Hence, df(x) = 2x-3
-	#
+	#=
+	According to the Dual number operation definitions, it holds
+	
+		f(3+ϵ) = (2+ϵ)(1+ϵ) = 2 + 3ϵ + ϵ^2 = 3 + 3ϵ
+	
+	Hence, f(3) = 2 and df(3) = 3
+	
+	For arbitrary x one obtains
+	
+	 	f(x+ϵ) = (x+ϵ-1)(x+ϵ-2) = x^2-3x+2 + ϵ(2x-3)
+	
+	Hence, df(x) = 2x-3
+	=#
 end
 
 # ╔═╡ 2029b8bd-408c-4e2f-a628-ee2a56eed43a
@@ -134,7 +137,7 @@ Text("  f(z) = $(f(z))\n df(z) = $(df(z))\nd2f(z) = $(d2f(z))")
 # ╔═╡ 271511b3-c5e5-4ca2-ab79-5372b9f9a616
 md"""
 
-**Exercise 2.1** : Check what you have computed by hand in the dual number exercise above.
+**Exercise 2.1** : Check what you have computed by hand in the dual number Exercise 1 above.
 
 **Exercise 2.2** : Try discontinuous functions to see what happens, e.g. $f(z) = \lvert z \rvert$ around $z = 0$ or $f(z) = e^{-1/z^2}$ at $z = 0$.
 
@@ -179,7 +182,7 @@ md"""
 
 ### Example 2 : (Partial) Derivatives of vector-valued functions
 
-Let's have a look at some two-dimensionally parametrized vector-field $F : \mathbb{R}^2 \rightarrow \mathbb{R}^3$
+Let's have a look at some two-dimensionally parametrized vector-field $F : \mathbb{R}^2 \rightarrow \mathbb{R}^3$, e.g.
 
 """
 
@@ -191,7 +194,7 @@ end
 # ╔═╡ 525771d7-0e1c-4841-adcc-7faf01d72172
 md"""
 
-A partial derivative of F with respect to the parameter $y$ could be obtained by
+A partial derivative of F with respect to the parameter $a$ could be obtained by
 
 """
 
@@ -238,7 +241,7 @@ md"""
 
 ### Advanced Usage
 
-Whenever a function is differentiated at many points and performance becomes important, it is advisable to use a buffer to store the function value and the desired derivatives. Moreover, if e.g. the hessian is computed it would be nice to get out the lower derivatives as well without issuing another gradient computation. All this can be achieved with using DiffResults. Details can be found in the [Documentation of DiffResults](https://juliadiff.org/DiffResults.jl/stable/)
+Whenever a function is differentiated at many points and performance becomes important, it is advisable to use a buffer to store the function value and the desired derivatives. Moreover, if e.g. the hessian is computed it would be nice to get out the lower derivatives as well without issuing another gradient computation. All this can be achieved with using DiffResults. Details can be found in the [Documentation of DiffResults](https://juliadiff.org/DiffResults.jl/stable/).
 
 Additionally, ForwardDiff can be tuned with a Configuration variable to e.g. modify the chunk size which is more relevant for larger input sizes. Details can be found in the [Documentation of ForwardDiff](https://juliadiff.org/ForwardDiff.jl/stable/user/advanced/).
 
@@ -365,8 +368,12 @@ In the **backward pass**
 - the same graph is traversed backward starting with a seed $\bar f$ for the change of the output
 - now in red: $\bar w_k$ denotes the adjoint $\bar w_k = \partial f / \partial w_k$
 - equivalent to traversing the chain rule from outside to inside
-- hence in the backward pass one seed in $f$ gives the full gradient (instead of two seeds in the forward mode)
-- backward pass is better if number of input arguments is larger than number of output arguments, but also needs more memory to store instructions for the backward pass ('tape')
+"""
+
+# ╔═╡ e93a5ba8-f33e-4c0c-b094-059a3e5138bf
+md"""
+Hence, in the backward pass one seed in $f$ gives the full gradient (instead of two seeds in the forward mode). The backward pass can perform better if the number of input arguments is larger than the number of output arguments, but also needs more memory to store instructions for the backward pass (called 'tape').
+
 """
 
 # ╔═╡ 4f4f8076-cc54-40ff-8dee-2c84d46e6e8b
@@ -389,8 +396,8 @@ md""" Next, we pre-compile the tape for the gradient evaluation """
 # ╔═╡ 46070ab8-dd40-4cb2-91a2-28f24813d125
 begin
 	# record/compile tape for A, B being each nxn matrices
-	const h_tape = ReverseDiff.GradientTape(h, (rand(n,n), rand(n,n)))
-	const compiled_h_tape = ReverseDiff.compile(h_tape)
+	h_tape = ReverseDiff.GradientTape(h, (rand(n,n), rand(n,n)))
+	compiled_h_tape = ReverseDiff.compile(h_tape)
 end
 
 # ╔═╡ 56b58ecf-87ce-4ed1-a38a-b817f2593ead
@@ -445,11 +452,11 @@ In the remaining time we want to work on some project that can be found in the f
 # ╠═be36c18c-9e06-41a6-b76d-22fb2ee359f9
 # ╟─62a2e422-3ed3-44bf-9d67-11bc899a4b38
 # ╟─aa74e4e8-8e9f-4c6d-bb2f-4dbf73f88a7e
-# ╠═3fcbd0f1-b767-4876-bb97-9322caf10aae
+# ╟─3fcbd0f1-b767-4876-bb97-9322caf10aae
 # ╟─4c67d3bf-0d46-4b72-b902-28b31ddcea9a
 # ╟─a3ce3eca-150a-402b-ade1-1c391092dbf8
 # ╟─73784db5-11d6-4758-946c-b1a065a7d64b
-# ╠═2e954113-6e77-4936-83f1-58bb346aeb88
+# ╟─2e954113-6e77-4936-83f1-58bb346aeb88
 # ╟─6e721e97-fd41-45d5-bf66-ef6f82caa126
 # ╟─a28ad4b6-80ec-43a6-8eea-8956d633a5a2
 # ╟─a5b4455b-3d9d-4d98-958f-a3b23e607760
@@ -461,6 +468,7 @@ In the remaining time we want to work on some project that can be found in the f
 # ╟─ff11ab45-8c56-44b4-b2f1-f6d038dc08b6
 # ╟─9bffc36b-9547-4ab3-92c3-405e500addd5
 # ╟─dc09ce8c-b27f-4e93-b741-aa1d461e3efa
+# ╟─e93a5ba8-f33e-4c0c-b094-059a3e5138bf
 # ╟─4f4f8076-cc54-40ff-8dee-2c84d46e6e8b
 # ╠═a99b4512-b820-434e-88e5-d58a04689b0c
 # ╟─466a4c45-5889-4c70-854d-84bbeb013894
